@@ -2,13 +2,17 @@
 
 #include "ConnectionToServer.hpp"
 #include <boost/bind.hpp>
+#include "network/NetworkMessage.hpp"
+#include "network/NetworkClient.hpp"
 
 ConnectionToServer::ConnectionToServer( const std::string& name,
                                         connection_ptr connection )
 :
    name( name ),
    connection( connection ),
-   message()
+   message(),
+   client( NULL ),
+   status( INIT )
 {
 	std::cout << "ConnectionToServer> New client conncection created> " << name << std::endl;
 }
@@ -16,6 +20,12 @@ ConnectionToServer::ConnectionToServer( const std::string& name,
 ConnectionToServer::~ConnectionToServer() 
 { 
 	std::cout << "ConnectionToServer> Session close> " << name << std::endl;
+}
+
+// set the client user of this connection
+void ConnectionToServer::setNetworkClient( NetworkClient* client )
+{
+   this->client = client;
 }
 
 const std::string& ConnectionToServer::getName() const
@@ -59,8 +69,35 @@ void ConnectionToServer::handleRead( const boost::system::error_code& error )
 {
 	if ( error == 0)
 	{
-		// manage the message
+#ifdef __DEBUG__
+      // log the message if needed
       std::cout << "ConnectionToServer> " << "Message received> " << message << std::endl;
+#endif
+
+      // check if its the init process
+      if (  ( status == INIT )
+          &&( message == MESSAGE_LOGIN_ASKED )  )
+      {
+         status = LOGIN;
+         sendMessage( client->getLogin() + ":" + client->getPassword() );
+      }
+      else if ( status == LOGIN )
+      {
+         if ( message == MESSAGE_LOGIN_ACCEPTED )
+         {
+            status = CONNECTED;
+            client->onLoginSucced();
+         }
+         else if ( message == MESSAGE_LOGIN_REFUSED )
+         {
+            status = INIT;
+         }
+      }
+      else if ( status == CONNECTED )
+      {
+         // forward the message to the client
+         client->onHandleMessage( message );
+      }
 
 		// and back to listen
 		waitForData();
@@ -88,8 +125,8 @@ void ConnectionToServer::handleConnect( connection_ptr new_connection,
    // check the error status
 	if ( error == 0)
 	{
-      // send the clientName on the socket
-      sendMessage( name );
+      // send the init message
+      sendMessage( MESSAGE_INIT );
 
       // call the async reading
 		waitForData();

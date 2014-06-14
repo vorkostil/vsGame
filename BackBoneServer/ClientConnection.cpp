@@ -1,15 +1,9 @@
 #define _WIN32_WINNT 0x0501
 
+#include <boost/bind.hpp>
 #include "ClientConnection.hpp"
 #include "ConnectionManager.hpp"
-#include <boost/bind.hpp>
-
-#define MESSAGE_INIT "INIT"
-#define MESSAGE_SYSTEM "SYSTEM"
-#define MESSAGE_LOGIN "LOGIN"
-#define MESSAGE_ASKED "ASKED"
-#define MESSAGE_ACCEPTED "ACCEPTED"
-#define MESSAGE_REFUSED "REFUSED"
+#include "network/NetworkMessage.hpp"
 
 ClientConnection::ClientConnection( const std::string& technicalId,
                                     ConnectionManager* connectionManager,
@@ -20,7 +14,8 @@ ClientConnection::ClientConnection( const std::string& technicalId,
    connection( connection ),
    message(),
    login(),
-   currentState( INIT )
+   currentState( INIT ),
+   load( 0 )
 {
 	std::cout << "ClientConnection> " << "New client conncection created> " << technicalId << std::endl;
 }
@@ -58,13 +53,13 @@ void ClientConnection::askForLogin()
 {
    // send a login demand
    currentState = WAITING_FOR_LOGIN;
-   sendMessage( MESSAGE_SYSTEM" "MESSAGE_LOGIN"_"MESSAGE_ASKED );
+   sendMessage( MESSAGE_LOGIN_ASKED );
 }
 
 void ClientConnection::sendMessage(const std::string& message)
 {
-   // send the message on the network and finish with a \n 
-   connection->asyncWrite( message,
+   // send the message on the network
+   connection->asyncWrite( message + '\0',
 		                     boost::bind( &ClientConnection::handleWrite, 
                                         shared_from_this(),
 		                                  boost::asio::placeholders::error ) );
@@ -88,18 +83,19 @@ void ClientConnection::handleRead( const boost::system::error_code& error )
          std::string passwd = message.substr( message.find( ':' ) + 1 );
 
          // WAITIG_FOR_LOGIN and login is set, check the passwd
-         if ( login == passwd )
+         if ( connectionManager->isValidLogin( login,
+                                               passwd ) == true )
          {
             // connection accepted
             currentState = CONNECTED;
 
             // send the acceptance message
-            sendMessage( MESSAGE_SYSTEM" "MESSAGE_LOGIN"_"MESSAGE_ACCEPTED );
+            sendMessage( MESSAGE_LOGIN_ACCEPTED );
          }
          else
          {
             // refused the connection
-            sendMessage( MESSAGE_SYSTEM" "MESSAGE_LOGIN"_"MESSAGE_REFUSED );
+            sendMessage( MESSAGE_LOGIN_REFUSED );
 
             // and close the socket
             std::cout << "ClientConnection (" << technicalId << ") > login refused: " << login << " | " << passwd << std::endl;
@@ -108,7 +104,7 @@ void ClientConnection::handleRead( const boost::system::error_code& error )
       }
       else if ( currentState == CONNECTED )
       {
-		   // manage the message
+		   // forward the message to the connection manager
 		   connectionManager->handleMessage( shared_from_this(),
                                            message );
       }
@@ -132,4 +128,25 @@ void ClientConnection::handleWrite( const boost::system::error_code& error )
       std::cout << "ClientConnection (" << technicalId << ") > handleWrite call with error code: " << error.value() << " --> " << error.message() << std::endl;
       connectionManager->closeConnection( shared_from_this() );
 	}
+}
+
+// increase the load of the provider
+void ClientConnection::incLoad()
+{
+   load++;
+}
+
+// decrease the load of the provider
+void ClientConnection::decLoad()
+{
+   if ( load > 0 )
+   {
+      load--;
+   }
+}
+
+// get the load of the provider
+size_t ClientConnection::getLoad() const
+{
+   return load;
 }

@@ -2,25 +2,49 @@
 
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/enable_shared_from_this.hpp>
-#include "../../BackBoneServer/SimpleTcpConnection.hpp"
+#include "network/SimpleTcpConnection.hpp"
 
+class NetworkClient;
 
 // this class is use to represent a client connection
 class ConnectionToServer : public boost::enable_shared_from_this< ConnectionToServer >
 {
+private:
+
+   // the status of the connection
+   enum State
+   {
+      INIT = 0,
+      LOGIN,
+      CONNECTED
+   };
+   int status;
+
+   // the buffer used to receive message
+   std::string message;
+
+   // the connection use to read / write on the network
+	connection_ptr connection;
+
+   // the name of the connection (internal id)
+   std::string name;
+
+   // the client using the connection
+   NetworkClient* client;
+
 public:
    // auto reference fir enable shared
-   typedef boost::shared_ptr< ConnectionToServer > ConnectionToServerPtr;
+   typedef boost::shared_ptr< ConnectionToServer > InternalConnectionToServerPtr;
 
    // classic dtor
 	~ConnectionToServer();
 
    // creator for the shared ptr mechanism
-	static ConnectionToServerPtr create( const std::string& name,
-                                        connection_ptr tcp_connection )
+	static InternalConnectionToServerPtr create( const std::string& name,
+                                                connection_ptr tcp_connection)
 	{
-		ConnectionToServerPtr session( new ConnectionToServer( name,
-                                                             tcp_connection ) );
+		InternalConnectionToServerPtr session( new ConnectionToServer( name,
+                                                                     tcp_connection ) );
 		return session;
 	}
 
@@ -35,6 +59,9 @@ public:
 
    // connect to the server known by its endpoint
    void connect( boost::asio::ip::tcp::endpoint& endpoint );
+
+   // set the client user of this connection
+   void setNetworkClient( NetworkClient* client );
 
 private:
    // the real ctor in the private zone as we use the shared ptr mechanism
@@ -53,13 +80,7 @@ private:
    // callback of connect result
 	void	handleConnect( connection_ptr new_connection, 
                         const boost::system::error_code& error );
-
-   // the buffer used to receive message
-   std::string message;
-
-   // the connection use to read / write on the network
-	connection_ptr connection;
-
-   // the name of the connection (internal id)
-   std::string name;
 };
+
+// typedef to ease the coding
+typedef ConnectionToServer::InternalConnectionToServerPtr ConnectionToServerPtr;

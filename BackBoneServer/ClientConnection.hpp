@@ -2,7 +2,10 @@
 
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/enable_shared_from_this.hpp>
-#include "SimpleTcpConnection.hpp"
+#include <set>
+#include <map>
+
+#include "network/SimpleTcpConnection.hpp"
 
 class ConnectionManager;
 
@@ -28,6 +31,9 @@ private:
    // the current status of the connection
    int currentState;
 
+   // the load of the client (if it's a provider)
+   size_t load;
+
    enum State
    {
       INIT = 0,
@@ -37,19 +43,19 @@ private:
 
 public:
    // auto reference fir enable shared
-   typedef boost::shared_ptr< ClientConnection > ClientConnectionPtr;
+   typedef boost::shared_ptr< ClientConnection > InternalClientConnectionPtr;
 
    // classic dtor
 	~ClientConnection();
 
    // creator for the shared ptr mechanism
-	static ClientConnectionPtr create( const std::string& name,
+	static InternalClientConnectionPtr create( const std::string& name,
                                       ConnectionManager* connectionManager,
                                       connection_ptr tcp_connection )
 	{
-		ClientConnectionPtr session( new ClientConnection( name,
-                                                         connectionManager,
-                                                         tcp_connection ) );
+		InternalClientConnectionPtr session( new ClientConnection( name,
+                                                                 connectionManager,
+                                                                 tcp_connection ) );
 		session->waitForData();
 		return session;
 	}
@@ -65,6 +71,15 @@ public:
 
    // close the connection
    void close();
+
+   // increase the load of the provider
+   void incLoad();
+
+   // decrease the load of the provider
+   void decLoad();
+
+   // get the load of the provider
+   size_t getLoad() const;
 
 private:
    // the real ctor in the private zone as we use the shared ptr mechanism
@@ -84,3 +99,8 @@ private:
    // ask the login of the client
    void askForLogin();
 };
+
+// the related typedef to ease the manipulation
+typedef ClientConnection::InternalClientConnectionPtr ClientConnectionPtr;
+typedef std::set< ClientConnectionPtr > ClientList;
+typedef std::map< std::string, ClientList > ClientAggregat;
