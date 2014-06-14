@@ -2,10 +2,11 @@
 
 #include <string>
 
-static const std::string MESSAGE_INIT( "INIT" );
+static const std::string MESSAGE_INIT( "SYSTEM_INIT_CONNECTION" );
 static const std::string MESSAGE_LOGIN_ASKED( "SYSTEM_LOGIN_ASKED" );
 static const std::string MESSAGE_LOGIN_ACCEPTED( "SYSTEM_LOGIN_ACCEPTED" );
 static const std::string MESSAGE_LOGIN_REFUSED( "SYSTEM_LOGIN_REFUSED" );
+static const std::string MESSAGE_CLOSE( "SYSTEM_CLOSE_CONNECTION" );
 
 static const std::string SYSTEM_REGISTER( "SYSTEM_REGISTER" );
 static const std::string SYSTEM_REQUEST_GAME( "SYSTEM_REQUEST_GAME" );

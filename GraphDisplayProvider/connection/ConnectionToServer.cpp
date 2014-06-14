@@ -125,6 +125,9 @@ void ConnectionToServer::handleConnect( connection_ptr new_connection,
    // check the error status
 	if ( error == 0)
 	{
+      // alert the client
+      client->onConnection();
+
       // send the init message
       sendMessage( MESSAGE_INIT );
 
@@ -136,3 +139,17 @@ void ConnectionToServer::handleConnect( connection_ptr new_connection,
       std::cout << "ConnectionToServer> " << name << "> handleConnect call with error code: " << error.value() << " --> " << error.message() << std::endl;
    }
 }
+
+// return the localendpoint as string host:port
+std::string ConnectionToServer::getLocalEndPointAsString() const
+{
+   char result[ 1024 ];
+   sprintf_s( result,
+              1024,
+              "%s@%d",
+              connection->getSocket().local_endpoint().address().to_string().c_str(),
+              connection->getSocket().local_endpoint().port() );
+
+   return std::string( result );
+}
+

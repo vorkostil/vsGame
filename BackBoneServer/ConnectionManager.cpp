@@ -473,7 +473,7 @@ void ConnectionManager::dumpCurrentState() const
          it != connections.end();
          it++ )
    {
-      std::cout << "\t" << (*it)->getLogin() << std::endl;
+      std::cout << "\t" << (*it)->getTechnicalId() << "\t" << (*it)->getLogin() << std::endl;
    }
    std::cout << "------------------------------------------------------------------------------" << std::endl;
    std::cout << "GAME DEFINITION: " << std::endl;
@@ -495,7 +495,7 @@ void ConnectionManager::dumpCurrentState() const
             it != itAgg->second.end();
             it++ )
       {
-         std::cout << "\t\t" << (*it)->getLogin() << std::endl;
+         std::cout << "\t\t" << (*it)->getTechnicalId() << "\t" << (*it)->getLogin() << std::endl;
       }
    }
    std::cout << "------------------------------------------------------------------------------" << std::endl;
@@ -509,7 +509,7 @@ void ConnectionManager::dumpCurrentState() const
             it != itAgg->second.end();
             it++ )
       {
-         std::cout << "\t\t" << (*it)->getLogin() << "\t" << (*it)->getLoad() << std::endl;
+         std::cout << "\t\t" << (*it)->getTechnicalId() << "\t" << (*it)->getLogin() << "\t" << (*it)->getLoad() << std::endl;
       }
    }
    std::cout << "------------------------------------------------------------------------------" << std::endl;
@@ -519,12 +519,12 @@ void ConnectionManager::dumpCurrentState() const
          it++ )
    {
       std::cout << "\t" << it->first << std::endl;
-      std::cout << "\t\t" << it->second->getProvider()->getLogin() << std::endl;
+      std::cout << "\t\t" << it->second->getProvider()->getTechnicalId() << "\t" << it->second->getProvider()->getLogin() << std::endl;
       for ( ClientList::const_iterator itClient = it->second->getClients().begin();
             itClient != it->second->getClients().end();
             itClient++ )
       {
-         std::cout << "\t\t\t" << (*itClient)->getLogin() << std::endl;
+         std::cout << "\t\t\t" << (*itClient)->getTechnicalId() << "\t" << (*itClient)->getLogin() << std::endl;
       }
    }
    std::cout << "------------------------------------------------------------------------------" << std::endl;

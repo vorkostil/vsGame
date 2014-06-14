@@ -104,9 +104,19 @@ void ClientConnection::handleRead( const boost::system::error_code& error )
       }
       else if ( currentState == CONNECTED )
       {
-		   // forward the message to the connection manager
-		   connectionManager->handleMessage( shared_from_this(),
-                                           message );
+         // check the close connection message
+         if ( message == MESSAGE_CLOSE )
+         {
+            // close the communication
+            std::cout << "ClientConnection (" << technicalId << ") > close connection" << std::endl;
+            connectionManager->closeConnection( shared_from_this() );
+         }
+         else
+         {
+		      // forward the message to the connection manager
+		      connectionManager->handleMessage( shared_from_this(),
+                                              message );
+         }
       }
 
 		// back to listen

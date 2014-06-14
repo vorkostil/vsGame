@@ -63,6 +63,9 @@ public:
    // set the client user of this connection
    void setNetworkClient( NetworkClient* client );
 
+   // return the localendpoint as string host:port
+   std::string getLocalEndPointAsString() const;
+
 private:
    // the real ctor in the private zone as we use the shared ptr mechanism
 	ConnectionToServer( const std::string& name,

@@ -11,7 +11,8 @@ const std::string GraphGridProvider::NAME( "GraphGridProvider" );
 GraphGridProvider::GraphGridProvider( ConnectionToServerPtr connection )
 :
    graphGrid( NULL ),
-   connection( connection )
+   connection( connection ),
+   login()
 {
    connection->setNetworkClient( this );
 }
@@ -22,6 +23,12 @@ void GraphGridProvider::connect( const std::string& host,
 {
    connection->connect( boost::asio::ip::tcp::endpoint( boost::asio::ip::address::from_string( host ),
                                                         port ) );
+}
+
+// callback when the connection is accepted
+void GraphGridProvider::onConnection()
+{
+   login = NAME + "_" + connection->getLocalEndPointAsString();
 }
 
 // create a new graph withe the size
@@ -107,13 +114,13 @@ void GraphGridProvider::callDFS()
 // get the login
 const std::string& GraphGridProvider::getLogin() const
 {
-   return NAME;
+   return login;
 }
 
 // get the passwd
 const std::string& GraphGridProvider::getPassword() const
 {
-   return NAME;
+   return login;
 }
 
 // call back when the login procotol succeed

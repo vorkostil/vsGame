@@ -7,6 +7,7 @@ class GraphGrid;
 
 class GraphGridProvider : public NetworkClient
 {
+   // the name of the provider
    static const std::string NAME;
 
    // the graph grid used
@@ -14,6 +15,9 @@ class GraphGridProvider : public NetworkClient
 
    // the client connected to this graph
    ConnectionToServerPtr connection;
+
+   // the login to store name + connection info
+   std::string login;
 
 public:
    // default ctor
@@ -43,6 +47,9 @@ public:
 
    // get the passwd
    virtual const std::string& getPassword() const;
+
+   // callback when the connection is accepted
+   virtual void onConnection();
 
    // call back when the login procotol succeed
    virtual void onLoginSucced();

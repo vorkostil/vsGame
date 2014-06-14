@@ -13,6 +13,9 @@ public:
    // get the passwd
    virtual const std::string& getPassword() const = 0;
 
+   // callback when the connection is accepted
+   virtual void onConnection() = 0;
+
    // call back when the login procotol succeed
    virtual void onLoginSucced() = 0;
 
