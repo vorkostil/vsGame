@@ -1,10 +1,46 @@
 #include "GraphGrid.hpp"
+#include "GraphGridProvider.hpp"
 #include <iostream>
+#include <string>
+
+static const std::string EMPTY_STR( "EMPTY" );
+static const std::string BLOCK_STR( "BLOCK" );
+static const std::string START_STR( "START" );
+static const std::string EXIT_STR( "EXIT" );
+static const std::string VISITED_STR( "VISITED" );
+static const std::string PATH_STR( "PATH" );
+
+static const std::string& cellToString( int value )
+{
+   if ( value == GraphGrid::PATH )
+   {
+      return PATH_STR;
+   }
+   else if ( value == GraphGrid::VISITED )
+   {
+      return VISITED_STR;
+   }
+   else if ( value == GraphGrid::ENTRY )
+   {
+      return START_STR;
+   }
+   else if ( value == GraphGrid::EXIT )
+   {
+      return EXIT_STR;
+   }
+   else if ( value == GraphGrid::BLOCK )
+   {
+      return BLOCK_STR;
+   }
+   return EMPTY_STR;
+}
 
 // ctor with the size of the grid
-GraphGrid::GraphGrid( size_t width,
+GraphGrid::GraphGrid( GraphGridProvider* provider,
+                      size_t width,
                       size_t height )
 :
+   provider( provider ),
    Grid( width, 
          height ),
    entryPointX( 0 ),
@@ -14,16 +50,60 @@ GraphGrid::GraphGrid( size_t width,
 
 // change the value at the given point
 // overrided to store the entry point
-void GraphGrid::setValueAt( size_t x,
+bool GraphGrid::setValueAt( size_t x,
                             size_t y,
                             int v )
 {
-   Grid::setValueAt( x, y, v );
-   if ( v == ENTRY )
+   if ( Grid::setValueAt( x, y, v ) == true )
    {
-      entryPointX = x;
-      entryPointY = y;
+      if ( v == ENTRY )
+      {
+         Grid::setValueAt( entryPointX,
+                           entryPointY,
+                           EMPTY );
+
+         provider->sendMessageChangeCell( entryPointX,
+                                          entryPointY,
+                                          EMPTY_STR );
+
+         entryPointX = x;
+         entryPointY = y;
+      }
+
+      provider->sendMessageChangeCell( x,
+                                       y,
+                                       cellToString( v ) );
+      return true;
    }
+   return false;
+}
+
+// change the value at the given point
+// overrided to store the entry point
+// return true if the cell is really modified
+bool GraphGrid::setValueAt( size_t x,
+                            size_t y,
+                            const std::string& value )
+{
+   int v = EMPTY;
+   if (  ( value == BLOCK_STR )
+       &&( getValueAt( x,
+                       y ) != BLOCK )  )
+   { 
+      v = BLOCK;
+   }
+   else if ( value == START_STR )
+   {
+      v = ENTRY;
+   }
+   else if (  ( value == EXIT_STR )
+            &&( getValueAt( x,
+                            y ) != EXIT )  )
+   {
+      v = EXIT;
+   }
+
+   return setValueAt( x, y, v );
 }
 
 // do a DFS search on the graph
@@ -153,7 +233,7 @@ void GraphGrid::display( std::ostream& out ) const
          }
          else 
          {
-            out << ' ';
+            out << '0';
          }
       }
       out << std::endl;

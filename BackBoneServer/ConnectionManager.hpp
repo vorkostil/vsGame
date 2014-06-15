@@ -97,18 +97,22 @@ private:
    void leaveGame( ClientConnectionPtr connection,
                    const std::string& gameId );
 
+   // close a current game given its gameId
+   //     'SYSTEM_GAME_CREATION_REFUSED GameId reason'
+   void closeGame( ClientConnectionPtr connection,
+                   const std::string& gameId,
+                   const std::string& reason );
+
    // forward the message to the game given its ID
    //     '<gameId> MESSAGE'
    void handleGameMessage( ClientConnectionPtr connection,
                            const std::string& gameId,
-                           const std::string& remainingMessage );
+                           const std::string& fullMessage );
 
    // find the less loaded provider in the list of provider
    ClientConnectionPtr findLessLoadedProvider( const ClientList& providers ) const;
 
-#ifdef __DEBUG__
    // display on std::cout the current state of the provider
    // connectiosn, games ...
    void dumpCurrentState() const;
-#endif
 };

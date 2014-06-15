@@ -84,10 +84,8 @@ void ConnectionManager::handle_accept( const boost::system::error_code& error,
 void ConnectionManager::handleMessage( ClientConnectionPtr connection,
                                        const std::string& message )
 {
-#ifdef __DEBUG__
    // log the message
    std::cout << connection->getLogin() << "> " << message << std::endl;
-#endif
 
    // explode the message to be able to check the kind 
    std::vector< std::string > messageParts;
@@ -116,15 +114,35 @@ void ConnectionManager::handleMessage( ClientConnectionPtr connection,
          leaveGame( connection,
                     messageParts[ 1 ] );
       }
+      else if ( messageParts[ 0 ] == SYSTEM_GAME_CREATION_REFUSED )
+      {
+         // get the relevant information
+         std::vector< std::string > messageInformation;
+         StringUtils::explode( messageParts[ 1 ],
+                               ' ',
+                               messageInformation,
+                               2 );
+
+         // and close the game
+         closeGame( connection,
+                    messageInformation[ 0 ],
+                    messageInformation[ 1 ] );
+      }
       else if ( messageParts[ 0 ] == GAME_MESSAGE )
       {
+         // get the relevant information
+         std::vector< std::string > messageInformation;
+         StringUtils::explode( messageParts[ 1 ],
+                               ' ',
+                               messageInformation,
+                               2 );
+
+         // and forward the message (gameId, message)
          handleGameMessage( connection,
-                            messageParts[ 0 ],
-                            messageParts[ 1 ] );
+                            messageInformation[ 0 ],
+                            message );
       }
-#ifdef __DEBUG__
       dumpCurrentState();
-#endif
    }
 }
 
@@ -145,7 +163,15 @@ void ConnectionManager::closeConnection( ClientConnectionPtr connection )
          if ( game->remove( connection ) == true )
          {
             // if the connection was the provider, close the game
-            game->close();
+            game->close( "Provider leave the network (connection closed)" );
+            delete game;
+            itGame = games.erase( itGame );
+            continue;
+         }
+         else if ( game->getClients().size() == 0 )
+         {
+            // if there is no more players
+            game->close( "No more players (last one close its connection)" );
             delete game;
             itGame = games.erase( itGame );
             continue;
@@ -221,9 +247,7 @@ void ConnectionManager::closeConnection( ClientConnectionPtr connection )
    // remove the connections from the list 
    connections.erase( connection );
 
-#ifdef __DEBUG__
       dumpCurrentState();
-#endif
 }
 
 // register a new connection on consumer or provider of game
@@ -319,52 +343,25 @@ void ConnectionManager::requestGame( ClientConnectionPtr connection,
          Game* game = new Game( gameDef, 
                                 findLessLoadedProvider( itProviders->second ) );
 
-         // create the list of available consumer (except the connection's one)
-         std::vector< std::string > availableConsumers;
+         // store it
+         games.insert( GameMap::value_type( game->getId(),
+                                            game ) );
 
-         // fill the list if needed
-         if ( gameDef.maxPlayer != 1 )
-         {
-            // manage the IA parts
-            if ( gameDef.iaAvailable == true )
-            {
-               availableConsumers.push_back( "IA" );
-            }
+         // alert the provider about a new game creation
+         // it can send back a GAME_CREATION_REFUSED which will leads to close the game
+         game->getProvider()->sendMessage( GAME_MESSAGE + " " + GAME_CREATED + " " + game->getId() );
 
-            for ( ClientList::iterator itConsumer = consumers.begin();
-                  itConsumer != consumers.end();
-                  itConsumer++ )
-            {
-               if ( *itConsumer != connection )
-               {
-                  ClientConnectionPtr cPtr = *itConsumer;
-                  availableConsumers.push_back( cPtr->getLogin() );
-               }
-            }
-         }
-
-         // create the acception message
-         std::string message = CREATE_MESSAGE( SYSTEM_GAME_ACCEPTED, game->getId() );
-         message += " " + availableConsumers.size();
-
-         for ( std::vector< std::string >::const_iterator itStr = availableConsumers.begin();
-               itStr != availableConsumers.end();
-               itStr++ )
-         {
-            message += " " + *itStr;
-         }
-
-         // and send it
-         connection->sendMessage( message );
+         // and send the accept message to the client
+         connection->sendMessage( GAME_MESSAGE + " " + GAME_ACCEPTED + " " + game->getId() + " " + gameDef.kind );
       }
       else
       {
-         connection->sendMessage( CREATE_MESSAGE( SYSTEM_GAME_REFUSED, "Not enough players available" ) );
+         connection->sendMessage( GAME_MESSAGE + " " + GAME_REFUSED + " Not enough players available" );
       }
    }
    else
    {
-      connection->sendMessage( CREATE_MESSAGE( SYSTEM_GAME_REFUSED, "Not server found for this game" ) );
+      connection->sendMessage( GAME_MESSAGE + " " + GAME_REFUSED + " No server found to handle this game" );
    }
 }
 
@@ -388,8 +385,12 @@ void ConnectionManager::joinGame( ClientConnectionPtr connection,
       }
       else
       {
-         connection->sendMessage( CREATE_MESSAGE( SYSTEM_JOIN_GAME_REFUSED, "The game is full" ) );
+         connection->sendMessage( GAME_MESSAGE + " " + GAME_JOIN_REFUSED + " " + gameId + " The game is full" );
       }
+   }
+   else
+   {
+      connection->sendMessage( GAME_MESSAGE + " " + GAME_JOIN_REFUSED + " " + gameId + " The game is unknown" );
    }
 }
 
@@ -406,10 +407,36 @@ void ConnectionManager::leaveGame( ClientConnectionPtr connection,
       if ( game->remove( connection ) == true )
       {
          // if the connection was the provider, close the game
-         game->close();
+         game->close( "Provider leave the network" );
          delete game;
          games.erase( itGame );
       }
+      else if ( game->getClients().size() == 0 )
+      {
+         // if there is no more players
+         game->close( "No more players" );
+         delete game;
+         games.erase( itGame );
+      }
+   }
+}
+
+// close a current game given its gameId
+//     'SYSTEM_GAME_CREATION_REFUSED GameId reason'
+void ConnectionManager::closeGame( ClientConnectionPtr connection,
+                                   const std::string& gameId,
+                                   const std::string& reason )
+{
+   // find the game
+   GameMap::iterator itGame = games.find( gameId );
+   if ( itGame != games.end() )
+   {
+      Game* game = itGame->second;
+
+      // and close it
+      game->close( reason );
+      delete game;
+      games.erase( itGame );
    }
 }
 
@@ -417,7 +444,7 @@ void ConnectionManager::leaveGame( ClientConnectionPtr connection,
 //     '<gameId> MESSAGE'
 void ConnectionManager::handleGameMessage( ClientConnectionPtr connection,
                                            const std::string& gameId,
-                                           const std::string& remainingMessage )
+                                           const std::string& fullMessage )
 {
    // find the game
    GameMap::iterator itGame = games.find( gameId );
@@ -425,7 +452,7 @@ void ConnectionManager::handleGameMessage( ClientConnectionPtr connection,
    {
       Game* game = itGame->second;
       game->handleMessage( connection,
-                           remainingMessage );
+                           fullMessage );
    }
 }
 
@@ -443,6 +470,7 @@ ClientConnectionPtr ConnectionManager::findLessLoadedProvider( const ClientList&
       {
          lessLoadedProvider = *itProvider;
       }
+      itProvider++;
    }
 
    // return it
@@ -456,18 +484,17 @@ bool ConnectionManager::isValidLogin( const std::string& login,
    return ( login == password );
 }
 
-#ifdef __DEBUG__
 // display on std::cout the current state of the provider
 // connectiosn, games ...
 void ConnectionManager::dumpCurrentState() const
 {
-   std::cout << "------------------------------------------------------------------------------" << std::endl;
+   std::cout << "----------------------------------------------------------------------------------------" << std::endl;
    std::cout << "connections:     " << connections.size() << std::endl;
    std::cout << "gameDefinitions: " << gameDefinitions.size() << std::endl;
    std::cout << "consumerByGame:  " << consumerByGame.size() << std::endl;
    std::cout << "providerByGame:  " << providerByGame.size() << std::endl;
    std::cout << "games:           " << games.size() << std::endl;
-   std::cout << "------------------------------------------------------------------------------" << std::endl;
+   std::cout << "----------------------------------------------------------------------------------------" << std::endl;
    std::cout << "CONNECTIONS: " << std::endl;
    for ( ClientList::const_iterator it = connections.begin();
          it != connections.end();
@@ -475,7 +502,7 @@ void ConnectionManager::dumpCurrentState() const
    {
       std::cout << "\t" << (*it)->getTechnicalId() << "\t" << (*it)->getLogin() << std::endl;
    }
-   std::cout << "------------------------------------------------------------------------------" << std::endl;
+   std::cout << "----------------------------------------------------------------------------------------" << std::endl;
    std::cout << "GAME DEFINITION: " << std::endl;
    for ( GameDefinitionMap::const_iterator it = gameDefinitions.begin();
          it != gameDefinitions.end();
@@ -484,7 +511,7 @@ void ConnectionManager::dumpCurrentState() const
       std::cout << "\t" << it->first << std::endl;
       std::cout << "\t\t" << it->second.kind << "\t" << it->second.minPlayer << "\t" << it->second.maxPlayer << "\t" << it->second.iaAvailable << std::endl;
    }
-   std::cout << "------------------------------------------------------------------------------" << std::endl;
+   std::cout << "----------------------------------------------------------------------------------------" << std::endl;
    std::cout << "CONSUMER BY GAME: " << std::endl;
    for ( ClientAggregat::const_iterator itAgg = consumerByGame.begin();
          itAgg != consumerByGame.end();
@@ -498,7 +525,7 @@ void ConnectionManager::dumpCurrentState() const
          std::cout << "\t\t" << (*it)->getTechnicalId() << "\t" << (*it)->getLogin() << std::endl;
       }
    }
-   std::cout << "------------------------------------------------------------------------------" << std::endl;
+   std::cout << "----------------------------------------------------------------------------------------" << std::endl;
    std::cout << "PROVIDER BY GAME: " << std::endl;
    for ( ClientAggregat::const_iterator itAgg = providerByGame.begin();
          itAgg != providerByGame.end();
@@ -512,22 +539,24 @@ void ConnectionManager::dumpCurrentState() const
          std::cout << "\t\t" << (*it)->getTechnicalId() << "\t" << (*it)->getLogin() << "\t" << (*it)->getLoad() << std::endl;
       }
    }
-   std::cout << "------------------------------------------------------------------------------" << std::endl;
+   std::cout << "----------------------------------------------------------------------------------------" << std::endl;
    std::cout << "CURRENT GAME: " << std::endl;
    for ( GameMap::const_iterator it = games.begin();
          it != games.end();
          it++ )
    {
+      Game* game = it->second;
+      const ClientList& clients = game->getClients();
+
       std::cout << "\t" << it->first << std::endl;
-      std::cout << "\t\t" << it->second->getProvider()->getTechnicalId() << "\t" << it->second->getProvider()->getLogin() << std::endl;
-      for ( ClientList::const_iterator itClient = it->second->getClients().begin();
-            itClient != it->second->getClients().end();
+      std::cout << "\t\t" << game->getProvider()->getTechnicalId() << "\t" << game->getProvider()->getLogin() << "\t--> " << clients.size() << " clients." << std::endl;
+      for ( ClientList::const_iterator itClient = clients.begin();
+            itClient != clients.end();
             itClient++ )
       {
          std::cout << "\t\t\t" << (*itClient)->getTechnicalId() << "\t" << (*itClient)->getLogin() << std::endl;
       }
    }
-   std::cout << "------------------------------------------------------------------------------" << std::endl;
+   std::cout << "----------------------------------------------------------------------------------------" << std::endl;
 
 }
-#endif

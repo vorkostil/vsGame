@@ -52,8 +52,6 @@ public:
 	void asyncWrite( const std::string& message, 
                     Handler handler )
    {
-      std::cout << "SimpleTcpConnection> Writing on the socket: " << message << std::endl;
-
       // write the message on the socket
 	   outMessage = message;
 	   boost::asio::async_write( connectionSocket, 

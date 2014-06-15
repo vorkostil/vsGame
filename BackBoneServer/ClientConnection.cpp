@@ -58,6 +58,8 @@ void ClientConnection::askForLogin()
 
 void ClientConnection::sendMessage(const std::string& message)
 {
+   std::cout << "ClientConnection (" << technicalId << ") writing: " << message << std::endl;
+
    // send the message on the network
    connection->asyncWrite( message + '\0',
 		                     boost::bind( &ClientConnection::handleWrite, 

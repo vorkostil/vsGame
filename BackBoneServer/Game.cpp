@@ -3,18 +3,28 @@
 #include "Game.hpp"
 #include "network/NetworkMessage.hpp"
 
-int Game::uniqueIdentifier = 0;
+// unique identifier creation
+static size_t uniqueIdentifier = 0;
+static std::string createUniqueId( const std::string& name )
+{
+   char tmp[1024];
+   sprintf_s( tmp,
+              1024,
+              "%s_%d",
+              name.c_str(),
+              uniqueIdentifier++ );
+   return std::string( tmp );
+}
 
 // create a game with its kind and its provider
 Game::Game( const GameDefinition& gameDefinition,
             ClientConnectionPtr provider )
 :
    gameDefinition( gameDefinition ),
-   id( gameDefinition.kind ),
+   id( createUniqueId( gameDefinition.kind ) ),
    provider( provider ),
    consumers()
 {
-   id += uniqueIdentifier++;
    provider->incLoad();
 }
 
@@ -115,12 +125,12 @@ bool Game::remove( ClientConnectionPtr connection )
 }
 
 // close the game, ie send the close message to all consumers and to the provider
-void Game::close()
+void Game::close( const std::string& reason )
 {
    // close the provider if any 
    if ( provider != NULL )
    {
-      provider->sendMessage( CREATE_MESSAGE( GAME_CLOSE_MESSAGE, id ) );
+      provider->sendMessage( GAME_MESSAGE + " " + CLOSE_MESSAGE + " " + id + " " + reason );
    }
 
    // close the consumers
@@ -128,7 +138,7 @@ void Game::close()
          itConsumer != consumers.end();
          itConsumer++ )
    {
-      (*itConsumer)->sendMessage( CREATE_MESSAGE( GAME_CLOSE_MESSAGE, id ) );
+      (*itConsumer)->sendMessage( GAME_MESSAGE + " " + CLOSE_MESSAGE + " " + id + " " + reason );
    }
 }
 
@@ -139,7 +149,6 @@ bool Game::placeAvailable() const
            ||( consumers.size() < gameDefinition.maxPlayer )  );
 }
 
-#ifdef __DEBUG__
 // return the provider
 ClientConnectionPtr Game::getProvider() const
 {
@@ -151,4 +160,3 @@ ClientList Game::getClients() const
 {
    return consumers;
 }
-#endif

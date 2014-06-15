@@ -5,7 +5,7 @@
 
 #include "network/SimpleTcpConnection.hpp"
 #include "connection/ConnectionToServer.hpp"
-#include "graph/GraphGridProvider.hpp"
+#include "ProviderManager.hpp"
 
 int main( int argc, char* argv[] )
 {
@@ -20,11 +20,10 @@ int main( int argc, char* argv[] )
 
    // create the connection to the server
    connection_ptr new_connection( new SimpleTcpConnection( io_service ) );
-   GraphGridProvider server( ConnectionToServer::create( "GraphGridProvider",
-                                                         new_connection ) );
-   server.createGraph( 32, 32 );
+   ProviderManager server( ConnectionToServer::create( "GraphDisplayProvider",
+                                                       new_connection ) );
    server.connect( argv[ 1 ],
-                     atoi( argv[ 2 ] ) );
+                   atoi( argv[ 2 ] ) );
 
    // launc hthe async reactor
 	io_service.run();

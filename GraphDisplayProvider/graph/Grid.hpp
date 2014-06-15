@@ -22,7 +22,8 @@ public:
    virtual ~Grid();
 
    // change the value at the given point
-   virtual void setValueAt( size_t x,
+   // return true if the value really change
+   virtual bool setValueAt( size_t x,
                             size_t y,
                             int v );
 

@@ -2,8 +2,13 @@
 
 #include "Grid.hpp"
 
+class GraphGridProvider;
+
 class GraphGrid : public Grid
 {
+   // the provider to send message
+   GraphGridProvider* provider;
+
    // the entry point, default position is 0,0
    size_t entryPointX;
    size_t entryPointY;
@@ -21,14 +26,24 @@ public:
    } Content;
 
    // ctor with the size of the grid
-   GraphGrid( size_t width,
+   // and the provider to send message
+   GraphGrid( GraphGridProvider* provider,
+              size_t width,
               size_t height );
 
    // change the value at the given point
    // overrided to store the entry point
-   virtual void setValueAt( size_t x,
+   // return true if the cell is really modified
+   virtual bool setValueAt( size_t x,
                             size_t y,
                             int v );
+
+   // change the value at the given point
+   // overrided to store the entry point
+   // return true if the cell is really modified
+   virtual bool setValueAt( size_t x,
+                            size_t y,
+                            const std::string& value );
 
    // do a DFS search on the graph
    bool computeDFS();

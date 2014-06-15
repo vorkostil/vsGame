@@ -1,59 +1,48 @@
 #pragma once
 
-#include "connection/ConnectionToServer.hpp"
-#include "network/NetworkClient.hpp"
-
 class GraphGrid;
+class ProviderManager;
 
-class GraphGridProvider : public NetworkClient
+class GraphGridProvider
 {
+   // the graph grid used (owned)
+   GraphGrid* graphGrid;
+
+   // the manager used to communicate on the network (not owned)
+   ProviderManager* manager;
+
+   // the id used to identify the instance of the game on the network
+   std::string gameId;
+
+public:
    // the name of the provider
    static const std::string NAME;
 
-   // the graph grid used
-   GraphGrid* graphGrid;
-
-   // the client connected to this graph
-   ConnectionToServerPtr connection;
-
-   // the login to store name + connection info
-   std::string login;
-
-public:
    // default ctor
-   GraphGridProvider( ConnectionToServerPtr connection );
+   GraphGridProvider( size_t width,
+                      size_t height );
 
-   // connect to the BBServer
-   void connect( const std::string& host,
-                 int port );
-
-   // create a new graph withe the size
-   void createGraph( size_t width,
-                     size_t height );
+   // dtor
+   virtual ~GraphGridProvider();
 
    // modify a cell value
-   void modifyCellValue( size_t x,
-                         size_t y,
-                         int value );
+   void sendMessageChangeCell( size_t x,
+                               size_t y,
+                               const std::string& value );
 
    // call a DFS computation
    void callDFS();
 
-   // coming from Network Client
-   //---------------------------
+   // network communication management
+   //---------------------------------
 
-   // get the login
-   virtual const std::string& getLogin() const;
+   // set the manager used to forward message on network
+   void setNetworkInformation( ProviderManager* manager,
+                               const std::string& gameId );
 
-   // get the passwd
-   virtual const std::string& getPassword() const;
+   // callback used to handle the message of game closure
+   void close( const std::string& reason );
 
-   // callback when the connection is accepted
-   virtual void onConnection();
-
-   // call back when the login procotol succeed
-   virtual void onLoginSucced();
-
-   // callback used to handle the message when logon
-   virtual void onHandleMessage( const std::string& message );
+   // call back for message managmeent
+   void handleGameMessage( const std::string& message );
 };

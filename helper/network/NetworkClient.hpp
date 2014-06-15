@@ -19,6 +19,14 @@ public:
    // call back when the login procotol succeed
    virtual void onLoginSucced() = 0;
 
+   // call back when a game creation message is received
+   virtual void onNewGameCreation( const std::string& gameId ) = 0;
+
+   // callback used to handle the message of game closure
+   virtual void onGameClose( const std::string& gameId,
+                             const std::string& reason ) = 0;
+
    // callback used to handle the message when logon
-   virtual void onHandleMessage( const std::string& message ) = 0;
+   virtual void onHandleMessage( const std::string& gameId,
+                                 const std::string& message ) = 0;
 };

@@ -6,8 +6,6 @@
 // a game representation from the server PoV
 class Game
 {
-   static int uniqueIdentifier;
-
    // the identifier
    std::string id;
 
@@ -45,16 +43,14 @@ public:
    bool remove( ClientConnectionPtr connection );
 
    // close the game, ie send the close message to all consumers and to the provider
-   void close();
+   void close( const std::string& reason );
 
    // return true if there is still some room for a player in the game
    bool placeAvailable() const;
 
-#ifdef __DEBUG__
    // return the provider
    ClientConnectionPtr getProvider() const;
 
    // return the clients
    ClientList getClients() const;
-#endif
 };

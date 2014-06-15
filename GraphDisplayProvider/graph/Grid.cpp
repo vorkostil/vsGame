@@ -15,14 +15,17 @@ Grid::~Grid()
    cells.clear();
 }
 
-void Grid::setValueAt( size_t x,
+bool Grid::setValueAt( size_t x,
                        size_t y,
                        int v )
 {
-   if ( isValid( x, y ) == true )
+   if (  ( isValid( x, y ) == true )
+       &&( cells[ y * width + x ] != v )  )
    {
       cells[ y * width + x ] = v;
+      return true;
    }
+   return false;
 }
 
 int Grid::getValueAt( size_t x,

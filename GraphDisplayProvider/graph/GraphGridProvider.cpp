@@ -1,138 +1,140 @@
 #define _WIN32_WINNT 0x0501
 
-#include <boost/asio.hpp>
+#include "../ProviderManager.hpp"
 #include "GraphGridProvider.hpp"
 #include "GraphGrid.hpp"
 #include "network/NetworkMessage.hpp"
+#include "string/StringUtils.hpp"
 
-const std::string GraphGridProvider::NAME( "GraphGridProvider" );
+const std::string GraphGridProvider::NAME( "GraphGame" );
+
+static const std::string CHANGE_CELL_STATE( "CHANGE_CELL_STATE" );
+static const std::string COMPUTE_DFS( "COMPUTE_DFS" );
 
 // default ctor
-GraphGridProvider::GraphGridProvider( ConnectionToServerPtr connection )
+GraphGridProvider::GraphGridProvider( size_t width,
+                                      size_t height )
 :
-   graphGrid( NULL ),
-   connection( connection ),
-   login()
+   manager( NULL )
 {
-   connection->setNetworkClient( this );
-}
-
-// connect to the BBServer
-void GraphGridProvider::connect( const std::string& host,
-                                 int port )
-{
-   connection->connect( boost::asio::ip::tcp::endpoint( boost::asio::ip::address::from_string( host ),
-                                                        port ) );
-}
-
-// callback when the connection is accepted
-void GraphGridProvider::onConnection()
-{
-   login = NAME + "_" + connection->getLocalEndPointAsString();
-}
-
-// create a new graph withe the size
-void GraphGridProvider::createGraph( size_t width,
-                                     size_t height )
-{
-   if ( graphGrid != NULL )
-   {
-      delete graphGrid;
-   }
-
-   graphGrid = new GraphGrid( width,
+   graphGrid = new GraphGrid( this,
+                              width,
                               height );
 }
 
-// modify a cell value
-void GraphGridProvider::modifyCellValue( size_t x,
-                                         size_t y,
-                                         int value )
+// dtor
+GraphGridProvider::~GraphGridProvider()
 {
-   if ( graphGrid == NULL )
-   {
-      connection->sendMessage( "ERROR No graph define" );
-   }
-   else
-   {
-      graphGrid->setValueAt( x, 
-                             y,
-                             value );
+   delete graphGrid;
+}
 
+
+// modify a cell value
+void GraphGridProvider::sendMessageChangeCell( size_t x,
+                                               size_t y,
+                                               const std::string& value )
+{
+   if ( manager != NULL )
+   {
       char message[ 1024 ];
       sprintf_s( message,
                  1024,
-                 "CELL_UPDATED %d %d %d",
+                 "%s %s CELL_UPDATED %d %d %s",
+                 GAME_MESSAGE.c_str(),
+                 gameId.c_str(),
                  x,
                  y,
-                 value );
+                 value.c_str() );
 
-      connection->sendMessage( message );
+      manager->sendMessage( message );
    }
 }
 
 // call a DFS computation
 void GraphGridProvider::callDFS()
 {
-   if ( graphGrid == NULL )
+   // initialize the buffer
+   int size = 256 + ( graphGrid->getNumberOfCells() * 2 );
+   char* message = new char( size );
+
+   // begin the message creation
+   sprintf_s( message,
+              size,
+              "%s %s PATH_RESULT",
+              GAME_MESSAGE,
+              gameId );
+
+   // compute the result
+   if ( graphGrid->computeDFS() == true )
    {
-      connection->sendMessage( "ERROR No graph define" );
+      sprintf_s( message,
+                 size,
+                 "%s OK",
+                 message );
    }
    else
    {
-      int size = 256 + ( graphGrid->getNumberOfCells() * 2 );
-      char* message = new char( size );
-
-      if ( graphGrid->computeDFS() == true )
-      {
-         sprintf_s( message,
-                    size,
-                    "PATH_COMPUTED OK %d ",
-                    graphGrid->getNumberOfCells() );
-      }
-      else
-      {
-         sprintf_s( message,
-                    size,
-                    "PATH_COMPUTED KO %d ",
-                    graphGrid->getNumberOfCells() );
-      }
-
-      std::stringstream graphStr;
-
-      graphGrid->display( graphStr );
       sprintf_s( message,
                  size,
-                 "%s %s",
-                 message,
-                 graphStr.str() );
+                 "%s KO",
+                 message );
+   }
 
-      connection->sendMessage( message );
+   // get the graph description
+   std::stringstream graphStr;
+   graphGrid->display( graphStr );
+
+   // create the end of the message
+   sprintf_s( message,
+              size,
+              "%s %d %d %s",
+              message,
+              graphGrid->getWidth(),
+              graphGrid->getHeight(),
+              graphStr.str() );
+
+   // send the message if the manager is present
+   if ( manager != NULL )
+   {
+      manager->sendMessage( message );
    }
 }
 
-// get the login
-const std::string& GraphGridProvider::getLogin() const
+
+// network communication management
+//---------------------------------
+
+// set the manager used to forward message on network
+void GraphGridProvider::setNetworkInformation( ProviderManager* manager,
+                                               const std::string& gameId )
 {
-   return login;
+   this->manager = manager;
+   this->gameId = gameId;
 }
 
-// get the passwd
-const std::string& GraphGridProvider::getPassword() const
+// callback used to handle the message of game closure
+void GraphGridProvider::close( const std::string& reason )
 {
-   return login;
+   std::cout << "Game " << gameId << " is close due to> " << reason << std::endl;
 }
 
-// call back when the login procotol succeed
-void GraphGridProvider::onLoginSucced()
+// call back for message managmeent
+void GraphGridProvider::handleGameMessage( const std::string& message )
 {
-   // register as provider
-   // [GameName MinPlayer MaxPlayer IAAvailable]
-   connection->sendMessage( SYSTEM_REGISTER + " " + PROVIDER_PART + " " + NAME + " 1 1 0" );
-}
+   // get the action and message information
+   std::vector< std::string > messageParts;
+   StringUtils::explode( message,
+                         ' ',
+                         messageParts );
 
-// callback used to handle the message when logon
-void GraphGridProvider::onHandleMessage( const std::string& message )
-{
-   // TODO
+   if ( messageParts[ 0 ] == CHANGE_CELL_STATE )
+   {
+      graphGrid->setValueAt( atoi( messageParts[ 1 ].c_str() ),
+                             atoi( messageParts[ 2 ].c_str() ),
+                             messageParts[ 3 ] );
+   }
+   else if ( messageParts[ 0 ] == COMPUTE_DFS )
+   {
+      callDFS();
+   }
 }
