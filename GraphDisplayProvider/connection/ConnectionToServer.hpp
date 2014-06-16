@@ -75,14 +75,17 @@ private:
 	void	waitForData	(); 
 
    // callback of write result
-	void	handleWrite( const boost::system::error_code& error );
+	void handleWrite( const boost::system::error_code& error );
 
    // callback of read result
-	void	handleRead( const boost::system::error_code& error );
+	void handleRead( const boost::system::error_code& error );
+
+   // thread used to decipher and manage the message
+   void handleMessageInThread( const std::string& messageToTreat );
 
    // callback of connect result
-	void	handleConnect( connection_ptr new_connection, 
-                        const boost::system::error_code& error );
+	void handleConnect( connection_ptr new_connection, 
+                       const boost::system::error_code& error );
 };
 
 // typedef to ease the coding

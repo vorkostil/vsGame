@@ -1,12 +1,13 @@
 #pragma once
 
-class GraphGrid;
+#include "GraphGrid.hpp"
+
 class ProviderManager;
 
 class GraphGridProvider
 {
    // the graph grid used (owned)
-   GraphGrid* graphGrid;
+   GraphGrid graphGrid;
 
    // the manager used to communicate on the network (not owned)
    ProviderManager* manager;

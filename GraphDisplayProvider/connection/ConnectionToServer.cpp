@@ -2,6 +2,7 @@
 
 #include "ConnectionToServer.hpp"
 #include <boost/bind.hpp>
+#include <boost/thread.hpp>
 #include "network/NetworkMessage.hpp"
 #include "network/NetworkClient.hpp"
 #include "string/StringUtils.hpp"
@@ -72,72 +73,10 @@ void ConnectionToServer::handleRead( const boost::system::error_code& error )
 {
 	if ( error == 0)
 	{
-      // log the message if needed
-      std::cout << "ConnectionToServer> " << "Message received> " << message << std::endl;
-
-      // check if its the init process
-      if (  ( status == INIT )
-          &&( message == MESSAGE_LOGIN_ASKED )  )
-      {
-         // manage the login message
-         status = LOGIN;
-         sendMessage( client->getLogin() + ":" + client->getPassword() );
-      }
-      // waiting for the login response
-      else if ( status == LOGIN )
-      {
-         // check the status
-         if ( message == MESSAGE_LOGIN_ACCEPTED )
-         {
-            // forward the success to the client
-            status = CONNECTED;
-            client->onLoginSucced();
-         }
-         else if ( message == MESSAGE_LOGIN_REFUSED )
-         {
-            // back to the INIT state
-            status = INIT;
-         }
-      }
-      // forward the day to day message
-      else if ( status == CONNECTED )
-      {
-         // explode the message to get the < kind, [ action | gameId ], remaining message >
-         std::vector< std::string > messagePart;
-         StringUtils::explode( message,
-                               ' ',
-                               messagePart,
-                               3 );
-         // check for game message
-         if ( messagePart[ 0 ] == GAME_MESSAGE )
-         {
-            // game creation
-            if ( messagePart[ 1 ] == GAME_CREATED )
-            {
-               client->onNewGameCreation( messagePart[ 2 ] );
-            }
-            // game destruction
-            else if ( messagePart[ 1 ] == CLOSE_MESSAGE )
-            {
-               // retrieve the message informatio
-               std::vector< std::string > messageInformation;
-               StringUtils::explode( messagePart[ 2 ],
-                                     ' ',
-                                     messageInformation,
-                                     2 );
-
-               // and close the game
-               client->onGameClose( messageInformation[ 0 ],
-                                    messageInformation[ 1 ] );
-            }
-            // forward the message to the client
-            else 
-            {
-               client->onHandleMessage( messagePart[ 1 ], 
-                                        messagePart[ 2 ] );
-            }
-         }
-      }
+      // invoke a thread to handle the message
+      boost::thread worker( &ConnectionToServer::handleMessageInThread,
+                            this,
+                            message );
 
 		// and back to listen
 		waitForData();
@@ -146,6 +85,77 @@ void ConnectionToServer::handleRead( const boost::system::error_code& error )
 	{
       std::cout << "ConnectionToServer> " << name << "> handleRead call with error code: " << error.value() << " --> " << error.message() << std::endl;
 	}
+}
+
+// thread used to decipher and manage the message
+void ConnectionToServer::handleMessageInThread( const std::string& messageToTreat )
+{
+   // log the message if needed
+   std::cout << "ConnectionToServer> " << "Message received> " << message << std::endl;
+
+   // check if its the init process
+   if (  ( status == INIT )
+       &&( messageToTreat == MESSAGE_LOGIN_ASKED )  )
+   {
+      // manage the login message
+      status = LOGIN;
+      sendMessage( client->getLogin() + ":" + client->getPassword() );
+   }
+   // waiting for the login response
+   else if ( status == LOGIN )
+   {
+      // check the status
+      if ( messageToTreat == MESSAGE_LOGIN_ACCEPTED )
+      {
+         // forward the success to the client
+         status = CONNECTED;
+         client->onLoginSucced();
+      }
+      else if ( messageToTreat == MESSAGE_LOGIN_REFUSED )
+      {
+         // back to the INIT state
+         status = INIT;
+      }
+   }
+   // forward the day to day message
+   else if ( status == CONNECTED )
+   {
+      // explode the message to get the < kind, [ action | gameId ], remaining message >
+      std::vector< std::string > messagePart;
+      StringUtils::explode( messageToTreat,
+                            ' ',
+                            messagePart,
+                            3 );
+      // check for game message
+      if ( messagePart[ 0 ] == GAME_MESSAGE )
+      {
+         // game creation
+         if ( messagePart[ 1 ] == GAME_CREATED )
+         {
+            client->onNewGameCreation( messagePart[ 2 ] );
+         }
+         // game destruction
+         else if ( messagePart[ 1 ] == CLOSE_MESSAGE )
+         {
+            // retrieve the message informatio
+            std::vector< std::string > messageInformation;
+            StringUtils::explode( messagePart[ 2 ],
+                                    ' ',
+                                    messageInformation,
+                                    2 );
+
+            // and close the game
+            client->onGameClose( messageInformation[ 0 ],
+                                 messageInformation[ 1 ] );
+         }
+         // forward the message to the client
+         else 
+         {
+            client->onHandleMessage( messagePart[ 1 ], 
+                                     messagePart[ 2 ] );
+         }
+      }
+   }
 }
 
 void ConnectionToServer::handleWrite( const boost::system::error_code& error )

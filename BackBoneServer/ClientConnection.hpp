@@ -96,6 +96,9 @@ private:
    // callback of read result
 	void handleRead( const boost::system::error_code& error );
 
+   // callback of handle result in a separate thread
+	void handleReadInThread( const std::string& messageToTreat );
+
    // ask the login of the client
    void askForLogin();
 };

@@ -1,18 +1,26 @@
 #include "Grid.hpp"
 #include <iostream>
 
-Grid::Grid( size_t width,
-            size_t height )
+Grid::Grid()
 :
-   width( width ),
-   height( height ),
-   cells( width * height )
+   width( 0 ),
+   height( 0 ),
+   cells()
 {
+}
+
+// initialize the graph with the size of the grid
+// and the provider to send message
+void Grid::initialize( size_t width, 
+                       size_t height )
+{
+   this->width = width;
+   this->height = height;
+   this->cells.resize( this->width * this->height );
 }
 
 Grid::~Grid()
 {
-   cells.clear();
 }
 
 bool Grid::setValueAt( size_t x,
@@ -38,7 +46,8 @@ int Grid::getValueAt( size_t x,
    return -1;
 }
 
-void Grid::display( std::ostream& out ) const
+void Grid::display( std::ostream& out,
+                    bool flat ) const
 {
    for( size_t y = 0;
         y < height;
@@ -54,7 +63,10 @@ void Grid::display( std::ostream& out ) const
             out << " ";
          }
       }
-      out << std::endl;
+      if ( flat == false )
+      {
+         out << std::endl;
+      }
    }
 }
 

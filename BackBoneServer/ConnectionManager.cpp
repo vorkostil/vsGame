@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <boost/bind.hpp>
+#include <boost/thread.hpp>
 
 #include "string/StringUtils.hpp"
 #include "network/NetworkMessage.hpp"

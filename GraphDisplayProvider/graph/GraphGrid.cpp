@@ -35,17 +35,34 @@ static const std::string& cellToString( int value )
    return EMPTY_STR;
 }
 
-// ctor with the size of the grid
-GraphGrid::GraphGrid( GraphGridProvider* provider,
-                      size_t width,
-                      size_t height )
+// ctor
+GraphGrid::GraphGrid()
 :
-   provider( provider ),
-   Grid( width, 
-         height ),
+   Grid(),
+   provider( NULL ),
    entryPointX( 0 ),
-   entryPointY( 0 )
+   entryPointY( 0 ),
+   blockMessage( false )
 {
+}
+
+// initialize the graph with the size of the grid
+// and the provider to send message
+void GraphGrid::initializeGraph( GraphGridProvider* provider,
+                                 size_t width,
+                                 size_t height )
+{
+   // create the grid
+   Grid::initialize( width,
+                     height );
+
+   // set the entry point @0,0
+   Grid::setValueAt( entryPointX,
+                     entryPointY,
+                     ENTRY );
+
+   // and initialize the provider
+   this->provider = provider;
 }
 
 // change the value at the given point
@@ -54,25 +71,31 @@ bool GraphGrid::setValueAt( size_t x,
                             size_t y,
                             int v )
 {
-   if ( Grid::setValueAt( x, y, v ) == true )
+   if ( v == ENTRY )
    {
-      if ( v == ENTRY )
-      {
-         Grid::setValueAt( entryPointX,
-                           entryPointY,
-                           EMPTY );
+      Grid::setValueAt( entryPointX,
+                        entryPointY,
+                        EMPTY );
 
+      if ( blockMessage == false )
+      {
          provider->sendMessageChangeCell( entryPointX,
                                           entryPointY,
                                           EMPTY_STR );
-
-         entryPointX = x;
-         entryPointY = y;
       }
 
-      provider->sendMessageChangeCell( x,
-                                       y,
-                                       cellToString( v ) );
+      entryPointX = x;
+      entryPointY = y;
+   }
+
+   if ( Grid::setValueAt( x, y, v ) == true )
+   {
+      if ( blockMessage == false )
+      {
+         provider->sendMessageChangeCell( x,
+                                          y,
+                                          cellToString( v ) );
+      }
       return true;
    }
    return false;
@@ -109,12 +132,31 @@ bool GraphGrid::setValueAt( size_t x,
 // do a DFS search on the graph
 bool GraphGrid::computeDFS()
 {
+   // block message sending
+   blockMessage = true;
+
+   // prepare the result
+   bool result = false;
+
+   // check the graph computation visibility
    if ( isValid() == true )
    {
-      return internalComputeDFS( entryPointX, 
-                                 entryPointY );
+      // compute the DFS
+      result = internalComputeDFS( entryPointX, 
+                                   entryPointY );
+
+      // put back the entryPoint to ENTRY (instead of PATH)
+      // TODO manage to exclude the Entry from the Path
+      setValueAt( entryPointX,
+                  entryPointY,
+                  ENTRY );
    }
-   return false;
+
+   // allow message sending bakc to normal
+   blockMessage = false;
+
+   // rturn the computation result
+   return result;
 }
 
 // do a recursive DFS search on the graph given the currentPoint
@@ -200,7 +242,8 @@ bool GraphGrid::isValid()
 }
 
 // display the cells on the stream
-void GraphGrid::display( std::ostream& out ) const
+void GraphGrid::display( std::ostream& out,
+                         bool flat ) const
 {
    for( size_t y = 0;
         y < getHeight();
@@ -236,7 +279,11 @@ void GraphGrid::display( std::ostream& out ) const
             out << '0';
          }
       }
-      out << std::endl;
+
+      if ( flat == false )
+      {
+         out << std::endl;
+      }
    }
 }
 

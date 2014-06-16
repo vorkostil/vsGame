@@ -2,6 +2,7 @@
 
 #include "connection/ConnectionToServer.hpp"
 #include "network/NetworkClient.hpp"
+#include "boost/thread/mutex.hpp"
 
 class GraphGridProvider;
 class ProviderManager : public NetworkClient
@@ -19,6 +20,10 @@ class ProviderManager : public NetworkClient
    typedef std::map< std::string, GraphGridProvider* > GamePool;
    GamePool gamePool;
 
+   // the mutex of the game storer
+   // allow many reader and 1 writer
+   boost::mutex gamePoolMutex;
+
 public:
 
    // ctor with the connection
@@ -33,6 +38,7 @@ public:
 
 private:
    // dump the current state of the manager
+   // should be call inside the mutex
    void dumpCurrentState() const;
 
    // coming from Network Client

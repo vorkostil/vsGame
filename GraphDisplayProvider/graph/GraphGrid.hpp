@@ -13,6 +13,9 @@ class GraphGrid : public Grid
    size_t entryPointX;
    size_t entryPointY;
 
+   // prevent sending message during graph computation
+   bool blockMessage;
+
 public:
    // cells content
    typedef enum
@@ -25,11 +28,14 @@ public:
       PATH    = 256
    } Content;
 
-   // ctor with the size of the grid
+   // ctor 
+   GraphGrid();
+
+   // initialize the graph with the size of the grid
    // and the provider to send message
-   GraphGrid( GraphGridProvider* provider,
-              size_t width,
-              size_t height );
+   void initializeGraph( GraphGridProvider* provider,
+                         size_t width,
+                         size_t height );
 
    // change the value at the given point
    // overrided to store the entry point
@@ -49,7 +55,8 @@ public:
    bool computeDFS();
 
    // display the cells on the stream
-   virtual void display( std::ostream& out ) const;
+   virtual void display( std::ostream& out,
+                         bool flat = true ) const;
 
    // reset the graph information to remove the VISITED and PATH information
    void reset();

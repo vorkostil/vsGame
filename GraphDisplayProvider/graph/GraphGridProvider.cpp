@@ -17,7 +17,7 @@ GraphGridProvider::GraphGridProvider( size_t width,
 :
    manager( NULL )
 {
-   graphGrid = new GraphGrid( this,
+   graphGrid.initializeGraph( this,
                               width,
                               height );
 }
@@ -25,7 +25,6 @@ GraphGridProvider::GraphGridProvider( size_t width,
 // dtor
 GraphGridProvider::~GraphGridProvider()
 {
-   delete graphGrid;
 }
 
 
@@ -53,50 +52,37 @@ void GraphGridProvider::sendMessageChangeCell( size_t x,
 // call a DFS computation
 void GraphGridProvider::callDFS()
 {
-   // initialize the buffer
-   int size = 256 + ( graphGrid->getNumberOfCells() * 2 );
-   char* message = new char( size );
-
-   // begin the message creation
-   sprintf_s( message,
-              size,
-              "%s %s PATH_RESULT",
-              GAME_MESSAGE,
-              gameId );
-
-   // compute the result
-   if ( graphGrid->computeDFS() == true )
+   // compute the DFS
+   std::string result;
+   if ( graphGrid.computeDFS() == true )
    {
-      sprintf_s( message,
-                 size,
-                 "%s OK",
-                 message );
+      result = "OK";
    }
    else
    {
-      sprintf_s( message,
-                 size,
-                 "%s KO",
-                 message );
+      result = "KO";
    }
 
    // get the graph description
    std::stringstream graphStr;
-   graphGrid->display( graphStr );
-
-   // create the end of the message
-   sprintf_s( message,
-              size,
-              "%s %d %d %s",
-              message,
-              graphGrid->getWidth(),
-              graphGrid->getHeight(),
-              graphStr.str() );
+   graphGrid.display( graphStr );
 
    // send the message if the manager is present
    if ( manager != NULL )
    {
-      manager->sendMessage( message );
+      //int size = 256 + ( graphGrid.getNumberOfCells() * 2 );
+      //char* message = new char( size );
+      char message[ 5000 ];
+      sprintf_s( message,
+                 5000,
+                 "%s %s COMPUTE_RESULT %s %s",
+                 GAME_MESSAGE.c_str(),
+                 gameId.c_str(),
+                 result.c_str(),
+                 graphStr.str().c_str() );
+
+      std::string messageToSend( message );
+      manager->sendMessage( messageToSend );
    }
 }
 
@@ -129,9 +115,9 @@ void GraphGridProvider::handleGameMessage( const std::string& message )
 
    if ( messageParts[ 0 ] == CHANGE_CELL_STATE )
    {
-      graphGrid->setValueAt( atoi( messageParts[ 1 ].c_str() ),
-                             atoi( messageParts[ 2 ].c_str() ),
-                             messageParts[ 3 ] );
+      graphGrid.setValueAt( atoi( messageParts[ 1 ].c_str() ),
+                            atoi( messageParts[ 2 ].c_str() ),
+                            messageParts[ 3 ] );
    }
    else if ( messageParts[ 0 ] == COMPUTE_DFS )
    {

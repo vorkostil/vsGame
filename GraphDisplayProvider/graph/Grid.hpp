@@ -15,8 +15,12 @@ class Grid
 public:
    // ctor with the structure parameter
    // set all cells at 0
-   Grid( size_t width, 
-         size_t height );
+   Grid();
+   
+   // initialize the graph with the size of the grid
+   // and the provider to send message
+   void initialize( size_t width, 
+                    size_t height );
 
    // the dtor
    virtual ~Grid();
@@ -32,7 +36,8 @@ public:
                            size_t y ) const;
 
    // display the cells on the stream
-   virtual void display( std::ostream& out ) const;
+   virtual void display( std::ostream& out,
+                         bool flat = true ) const;
 
    // size accessor
    size_t getWidth() const;
