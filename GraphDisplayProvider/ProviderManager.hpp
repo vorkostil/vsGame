@@ -60,7 +60,8 @@ private:
    virtual void onNewGameCreation( const std::string& gameId );
 
    // callback used to handle the message of game closure
-   virtual void onGameClose( const std::string& gameId,
+   // gameIds separator is |
+   virtual void onGameClose( const std::string& gameIds,
                              const std::string& reason );
 
    // callback used to handle the message when logon

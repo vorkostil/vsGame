@@ -225,6 +225,36 @@ bool GraphGrid::internalComputeDFS( size_t x,
    return false;
 }
 
+// call the BFS on the grid
+bool GraphGrid::computeBFS()
+{
+   return false;
+}
+
+// call the DIJ on the grid
+bool GraphGrid::computeDIJ()
+{
+   return false;
+}
+
+// call the A* on the grid
+bool GraphGrid::computeAstar()
+{
+   return false;
+}
+
+// call the A* manhattan on the grid
+bool GraphGrid::computeAstarM()
+{
+   return false;
+}
+
+// call the A* manhattan epsilon on the grid
+bool GraphGrid::computeAstarME()
+{
+   return false;
+}
+
 // check the grpah validity before computation
 // at least one EXIT
 bool GraphGrid::isValid()

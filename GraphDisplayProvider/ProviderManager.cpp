@@ -3,10 +3,11 @@
 #include <boost/asio.hpp>
 #include "ProviderManager.hpp"
 #include "network/NetworkMessage.hpp"
+#include "string/StringUtils.hpp"
 #include "graph/GraphGridProvider.hpp"
 
 // the maximum of available game at a given time
-const int ProviderManager::MAX_GAME_POOL_SIZE = 10;
+const int ProviderManager::MAX_GAME_POOL_SIZE = 4;
 
 // default ctor
 ProviderManager::ProviderManager( ConnectionToServerPtr connection )
@@ -66,64 +67,74 @@ void ProviderManager::onNewGameCreation( const std::string& gameId )
       game->setNetworkInformation( this,
                                    gameId );
 
-      /*|*/ // get the lock
-      /*|*/ gamePoolMutex.lock();
+      // get the lock
+      gamePoolMutex.lock();
       /*|*/ 
       /*|*/ // store the game
       /*|*/ gamePool.insert( GamePool::value_type( gameId,
       /*|*/                                        game ) );
       /*|*/ 
-      /*|*/ // and release the kraken
-      /*|*/ gamePoolMutex.unlock();
+      // and release the kraken
+      gamePoolMutex.unlock();
    }
    else
    {
       // send the refused message
       connection->sendMessage( SYSTEM_GAME_CREATION_REFUSED + " " + gameId + " No more slot available" );
    }
-   /*|*/ // get the lock
-   /*|*/ gamePoolMutex.lock();
+   // get the lock
+   gamePoolMutex.lock();
    /*|*/ 
    /*|*/ // dump the state
    /*|*/ dumpCurrentState();
    /*|*/ 
-   /*|*/ // release the lock
-   /*|*/ gamePoolMutex.unlock();
-   /*|*/ 
+   // release the lock
+   gamePoolMutex.unlock();
 }
 
 // callback used to handle the message of game closure
-void ProviderManager::onGameClose( const std::string& gameId,
+void ProviderManager::onGameClose( const std::string& gameIds,
                                    const std::string& reason )
 {
-   /*|*/ // get the lock
-   /*|*/ gamePoolMutex.lock();
+   // explode the game id list
+   std::vector< std::string > gameIdList;
+   StringUtils::explode( gameIds,
+                         '|',
+                         gameIdList );
+
+   // get the lock
+   gamePoolMutex.lock();
    /*|*/ 
-   /*|*/ // check if the game is managed
-   /*|*/ GamePool::iterator itGame = gamePool.find( gameId );
-   /*|*/ if ( itGame != gamePool.end() )
+   /*|*/ for ( std::vector< std::string >::const_iterator it = gameIdList.begin();
+   /*|*/       it != gameIdList.end();
+   /*|*/       it++ )
    /*|*/ {
-   /*|*/    // close the game
-   /*|*/    itGame->second->close( reason );
+   /*|*/    // check if the game is managed
+   /*|*/    GamePool::iterator itGame = gamePool.find( *it );
+   /*|*/    if ( itGame != gamePool.end() )
+   /*|*/    {
+   /*|*/       // close the game
+   /*|*/       itGame->second->close( reason );
    /*|*/ 
-   /*|*/    // and get back the memory
-   /*|*/    delete itGame->second;
-   /*|*/    gamePool.erase( itGame );
+   /*|*/       // and get back the memory
+   /*|*/       delete itGame->second;
+   /*|*/       gamePool.erase( itGame );
+   /*|*/    }
    /*|*/ }
    /*|*/ 
    /*|*/ // display the new state
    /*|*/ dumpCurrentState();
    /*|*/ 
-   /*|*/ // and release the lock
-   /*|*/ gamePoolMutex.unlock();
+   // and release the lock
+   gamePoolMutex.unlock();
 }
 
 // callback used to handle the message when logon
 void ProviderManager::onHandleMessage( const std::string& gameId,
                                        const std::string& message )
 {
-   /*|*/ // get the lock
-   /*|*/ gamePoolMutex.lock();
+   // get the lock
+   gamePoolMutex.lock();
    /*|*/ 
    /*|*/ // check if the game is managed
    /*|*/ GamePool::iterator itGame = gamePool.find( gameId );
@@ -132,8 +143,8 @@ void ProviderManager::onHandleMessage( const std::string& gameId,
    /*|*/    itGame->second->handleGameMessage( message );
    /*|*/ }
    /*|*/ 
-   /*|*/ // and release the lock
-   /*|*/ gamePoolMutex.unlock();
+   // and release the lock
+   gamePoolMutex.unlock();
 }
 
 // forward the message on the network

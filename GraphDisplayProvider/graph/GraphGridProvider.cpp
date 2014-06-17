@@ -10,6 +10,13 @@ const std::string GraphGridProvider::NAME( "GraphGame" );
 
 static const std::string CHANGE_CELL_STATE( "CHANGE_CELL_STATE" );
 static const std::string COMPUTE_DFS( "COMPUTE_DFS" );
+static const std::string COMPUTE_BFS( "COMPUTE_BFS" );
+static const std::string COMPUTE_DIJ( "COMPUTE_DIJ" );
+static const std::string COMPUTE_ASTAR( "COMPUTE_ASTAR" );
+static const std::string EUCLIDE( "EUCLIDE" );
+static const std::string MANHATTAN( "MANHATTAN" );
+static const std::string EPSILON( "EPSILON" );
+static const std::string RESET_PATH( "RESET_PATH" );
 
 // default ctor
 GraphGridProvider::GraphGridProvider( size_t width,
@@ -50,19 +57,35 @@ void GraphGridProvider::sendMessageChangeCell( size_t x,
 }
 
 // call a DFS computation
-void GraphGridProvider::callDFS()
+void GraphGridProvider::callComputation( ComputeFunctionPtr algorithm )
 {
    // compute the DFS
-   std::string result;
-   if ( graphGrid.computeDFS() == true )
+   if ( algorithm( &graphGrid ) == true )
    {
-      result = "OK";
+      // and send the result
+      sendComputeResult( "OK" );
    }
    else
    {
-      result = "KO";
+      // and send the result
+      sendComputeResult( "KO" );
    }
+}
 
+// call the reset on the graph and send the result as a compute result
+void GraphGridProvider::callReset()
+{
+   // call the reset
+   graphGrid.reset();
+
+   // and send the result
+   sendComputeResult( "RESET" );
+}
+
+// create he compute result message given the result expected
+// and send the message
+void GraphGridProvider::sendComputeResult( const std::string& result )
+{
    // get the graph description
    std::stringstream graphStr;
    graphGrid.display( graphStr );
@@ -85,8 +108,6 @@ void GraphGridProvider::callDFS()
       manager->sendMessage( messageToSend );
    }
 }
-
-
 // network communication management
 //---------------------------------
 
@@ -102,6 +123,42 @@ void GraphGridProvider::setNetworkInformation( ProviderManager* manager,
 void GraphGridProvider::close( const std::string& reason )
 {
    std::cout << "Game " << gameId << " is close due to> " << reason << std::endl;
+}
+
+// call the DFS on the grid
+bool computeDFS( GraphGrid* gg )
+{
+   return gg->computeDFS();
+}
+
+// call the BFS on the grid
+bool computeBFS( GraphGrid* gg )
+{
+   return gg->computeBFS();
+}
+
+// call the DIJ on the grid
+bool computeDIJ( GraphGrid* gg )
+{
+   return gg->computeDIJ();
+}
+
+// call the A* on the grid
+bool computeAstar( GraphGrid* gg )
+{
+   return gg->computeAstar();
+}
+
+// call the A* manhattan on the grid
+bool computeAstarM( GraphGrid* gg )
+{
+   return gg->computeAstarM();
+}
+
+// call the A* manhattan epsilon on the grid
+bool computeAstarME( GraphGrid* gg )
+{
+   return gg->computeAstarME();
 }
 
 // call back for message managmeent
@@ -121,6 +178,33 @@ void GraphGridProvider::handleGameMessage( const std::string& message )
    }
    else if ( messageParts[ 0 ] == COMPUTE_DFS )
    {
-      callDFS();
+      callComputation( &computeDFS );
+   }
+   else if ( messageParts[ 0 ] == COMPUTE_BFS )
+   {
+      callComputation( &computeBFS );
+   }
+   else if ( messageParts[ 0 ] == COMPUTE_DIJ )
+   {
+      callComputation( &computeDIJ );
+   }
+   else if ( messageParts[ 0 ] == COMPUTE_ASTAR )
+   {
+      if ( messageParts[ 1 ] == EUCLIDE )
+      {
+         callComputation( &computeAstar );
+      }
+      else if ( messageParts[ 0 ] == MANHATTAN )
+      {
+         callComputation( &computeAstarM );
+      }
+      else if ( messageParts[ 0 ] == EPSILON )
+      {
+         callComputation( &computeAstarME );
+      }
+   }
+   else if ( messageParts[ 0 ] == RESET_PATH )
+   {
+      callReset();
    }
 }

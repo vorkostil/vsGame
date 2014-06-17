@@ -54,6 +54,21 @@ public:
    // do a DFS search on the graph
    bool computeDFS();
 
+   // call the BFS on the grid
+   bool computeBFS();
+
+   // call the DIJ on the grid
+   bool computeDIJ();
+
+   // call the A* on the grid
+   bool computeAstar();
+
+   // call the A* manhattan on the grid
+   bool computeAstarM();
+
+   // call the A* manhattan epsilon on the grid
+   bool computeAstarME();
+
    // display the cells on the stream
    virtual void display( std::ostream& out,
                          bool flat = true ) const;

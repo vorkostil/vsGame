@@ -4,6 +4,7 @@
 
 class ProviderManager;
 
+// provider for the graph display client
 class GraphGridProvider
 {
    // the graph grid used (owned)
@@ -31,9 +32,6 @@ public:
                                size_t y,
                                const std::string& value );
 
-   // call a DFS computation
-   void callDFS();
-
    // network communication management
    //---------------------------------
 
@@ -46,4 +44,19 @@ public:
 
    // call back for message managmeent
    void handleGameMessage( const std::string& message );
+
+private:
+   // functor typepef for the computation call
+   typedef bool (*ComputeFunctionPtr)( GraphGrid* );
+
+   // call a computation given the algorithm
+   void callComputation( ComputeFunctionPtr algorithm );
+
+   // call the reset on the graph and send the result as a compute result
+   void callReset();
+
+   // create he compute result message given the result expected
+   // and send the message
+   void sendComputeResult( const std::string& result );
+
 };

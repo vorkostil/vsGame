@@ -149,6 +149,8 @@ void ConnectionManager::handleMessage( ClientConnectionPtr connection,
 
 void ConnectionManager::closeConnection( ClientConnectionPtr connection )
 {
+   std::set< std::string > gameToCloseList;
+
    // find all the game related to this connection
    for ( GameMap::iterator itGame = games.begin();
          itGame != games.end();
@@ -164,7 +166,7 @@ void ConnectionManager::closeConnection( ClientConnectionPtr connection )
          if ( game->remove( connection ) == true )
          {
             // if the connection was the provider, close the game
-            game->close( "Provider leave the network (connection closed)" );
+            gameToCloseList.insert( game->getId() );
             delete game;
             itGame = games.erase( itGame );
             continue;
@@ -172,7 +174,7 @@ void ConnectionManager::closeConnection( ClientConnectionPtr connection )
          else if ( game->getClients().size() == 0 )
          {
             // if there is no more players
-            game->close( "No more players (last one close its connection)" );
+            gameToCloseList.insert( game->getId() );
             delete game;
             itGame = games.erase( itGame );
             continue;
@@ -181,6 +183,33 @@ void ConnectionManager::closeConnection( ClientConnectionPtr connection )
 
       // go to the next game
       itGame++;
+   }
+
+   // check if there is some game to close
+   if ( gameToCloseList.size() > 0 )
+   {
+      // create the close message
+      std::string closeMessage( GAME_MESSAGE + " " + CLOSE_MESSAGE + " " );
+      size_t i = 0;
+      for ( std::set< std::string >::const_iterator it = gameToCloseList.begin();
+            it != gameToCloseList.end();
+            it++ )
+      {
+         closeMessage += *it;
+         if ( i++ < gameToCloseList.size() - 1 )
+         {
+            closeMessage += "|";
+         }
+      }
+      closeMessage += " Client close its connection and end the game" ;
+
+      // and send it to everyone
+      for ( ClientList::const_iterator itClient = connections.begin();
+            itClient != connections.end();
+            itClient++ )
+      {
+         (*itClient)->sendMessage( closeMessage );
+      }
    }
 
    // remove the connection from the client aggregat
@@ -248,7 +277,7 @@ void ConnectionManager::closeConnection( ClientConnectionPtr connection )
    // remove the connections from the list 
    connections.erase( connection );
 
-      dumpCurrentState();
+   dumpCurrentState();
 }
 
 // register a new connection on consumer or provider of game

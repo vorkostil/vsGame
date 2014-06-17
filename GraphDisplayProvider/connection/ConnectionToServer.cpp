@@ -140,9 +140,9 @@ void ConnectionToServer::handleMessageInThread( const std::string& messageToTrea
             // retrieve the message informatio
             std::vector< std::string > messageInformation;
             StringUtils::explode( messagePart[ 2 ],
-                                    ' ',
-                                    messageInformation,
-                                    2 );
+                                  ' ',
+                                  messageInformation,
+                                  2 );
 
             // and close the game
             client->onGameClose( messageInformation[ 0 ],
