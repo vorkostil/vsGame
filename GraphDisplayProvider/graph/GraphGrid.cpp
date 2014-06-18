@@ -1,5 +1,6 @@
 #include "GraphGrid.hpp"
 #include "GraphGridProvider.hpp"
+#include "GraphCell.hpp"
 #include <iostream>
 #include <string>
 
@@ -228,7 +229,77 @@ bool GraphGrid::internalComputeDFS( size_t x,
 // call the BFS on the grid
 bool GraphGrid::computeBFS()
 {
-   return false;
+   // create the node list to visit
+   std::vector< GraphCell* > nodeToVisit;
+   nodeToVisit.push_back( getCellAt( entryPointX,
+                                     entryPointY ) );
+
+   // and visit them
+   bool result = false;
+   GraphCell* currentCell;
+   std::vector< GraphCell* > children;
+   while ( nodeToVisit.size() > 0 )
+   {
+      // get the first cell
+      currentCell = *nodeToVisit.begin();
+      nodeToVisit.erase( nodeToVisit.begin() );
+
+      // check if the node has already been visited
+      if ( ( currentCell->getValue() & VISITED ) != VISITED )
+      {
+         // change the value of the node
+         currentCell->modifyValue( VISITED );
+
+         // check if the exit is found
+         if ( ( currentCell->getValue() & EXIT ) == EXIT )
+         {
+            // reset the exit value to EXIT
+            currentCell->modifyValue( - VISITED );
+
+            // create the path back
+            currentCell = currentCell->getFather();
+            while ( currentCell != NULL )
+            {
+               currentCell->modifyValue( - VISITED + PATH );
+               currentCell = currentCell->getFather();
+            }
+
+            // and ask to end
+            result = true;
+            break;
+         }
+
+         // get the children
+         children.clear();
+         currentCell->getChildren( this,
+                                   children );
+
+         // parse all the children
+         for ( std::vector< GraphCell* >::iterator it = children.begin();
+               it != children.end();
+               it++ )
+         {
+            GraphCell* cell = *it;
+
+            // add them if there are not block neither visited
+            if (  ( ( cell->getValue() & BLOCK ) != BLOCK )
+                &&( ( cell->getValue() & VISITED ) != VISITED )  )
+            {
+               cell->setFather( currentCell );
+               nodeToVisit.push_back( cell );
+            }
+         }
+      }
+   }
+
+   // put back the entryPoint to ENTRY (instead of PATH)
+   // TODO manage to exclude the Entry from the Path
+   setValueAt( entryPointX,
+               entryPointY,
+               ENTRY );
+
+   // if we are here, no path found
+   return result;
 }
 
 // call the DIJ on the grid
@@ -259,11 +330,11 @@ bool GraphGrid::computeAstarME()
 // at least one EXIT
 bool GraphGrid::isValid()
 {
-   for ( std::vector< int >::const_iterator it = getCells().begin();
+   for ( std::vector< GraphCell* >::const_iterator it = getCells().begin();
          it != getCells().end();
          it++ )
    {
-      if ( *it == EXIT )
+      if ( (*it)->getValue() == EXIT )
       {
          return true;
       }
@@ -320,23 +391,19 @@ void GraphGrid::display( std::ostream& out,
 // reset the graph information to remove the VISITED and PATH informatio
 void GraphGrid::reset()
 {
-   for ( std::vector< int >::iterator it = getCells().begin();
+   for ( std::vector< GraphCell* >::iterator it = getCells().begin();
          it != getCells().end();
          it++ )
    {
-      if ( ( *it & VISITED ) == VISITED )
+      if ( ( (*it)->getValue() & VISITED ) == VISITED )
       {
-         *it -= VISITED;
+         (*it)->modifyValue( -VISITED );
+         (*it)->resetFather();
       }
-      else if ( ( *it & PATH ) == PATH )
+      else if ( ( (*it)->getValue() & PATH ) == PATH )
       {
-         *it -= PATH;
+         (*it)->modifyValue( -PATH );
+         (*it)->resetFather();
       }
    }
-}
-
-// get the number of cell
-size_t GraphGrid::getNumberOfCells() const
-{
-   return getWidth() * getHeight();
 }

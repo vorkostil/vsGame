@@ -76,9 +76,6 @@ public:
    // reset the graph information to remove the VISITED and PATH information
    void reset();
 
-   // get the number of cell
-   size_t getNumberOfCells() const;
-
 protected:
    // check the grpah validity before computation
    // only one ENTRY, at least one EXIT
