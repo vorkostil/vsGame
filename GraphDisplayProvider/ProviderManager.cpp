@@ -1,6 +1,8 @@
 #define _WIN32_WINNT 0x0501
 
 #include <boost/asio.hpp>
+#include <boost/thread.hpp>
+
 #include "ProviderManager.hpp"
 #include "network/NetworkMessage.hpp"
 #include "string/StringUtils.hpp"
@@ -140,7 +142,10 @@ void ProviderManager::onHandleMessage( const std::string& gameId,
    /*|*/ GamePool::iterator itGame = gamePool.find( gameId );
    /*|*/ if ( itGame != gamePool.end() )
    /*|*/ {
-   /*|*/    itGame->second->handleGameMessage( message );
+   /*|*/    // spwan a thread to manage the message and avoid locking the gamePool for nothing
+   /*|*/    boost::thread worker( &GraphGridProvider::handleGameMessage,
+   /*|*/                          itGame->second,
+   /*|*/                          message );
    /*|*/ }
    /*|*/ 
    // and release the lock

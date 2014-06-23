@@ -194,11 +194,11 @@ void GraphGridProvider::handleGameMessage( const std::string& message )
       {
          callComputation( &computeAstar );
       }
-      else if ( messageParts[ 0 ] == MANHATTAN )
+      else if ( messageParts[ 1 ] == MANHATTAN )
       {
          callComputation( &computeAstarM );
       }
-      else if ( messageParts[ 0 ] == EPSILON )
+      else if ( messageParts[ 1 ] == EPSILON )
       {
          callComputation( &computeAstarME );
       }

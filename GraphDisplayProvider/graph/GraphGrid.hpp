@@ -16,6 +16,11 @@ class GraphGrid : public Grid
    // prevent sending message during graph computation
    bool blockMessage;
 
+   // the exit point for A* computation
+   // value is set by the validForAstar method
+   size_t exitPointX;
+   size_t exitPointY;
+
 public:
    // cells content
    typedef enum
@@ -80,6 +85,10 @@ protected:
    // check the grpah validity before computation
    // only one ENTRY, at least one EXIT
    bool isValid();
+
+   // check the grpah validity before A* computation
+   // only one EXIT
+   bool isValidForAstar();
 
    // do a recursive DFS search on the graph given the currentPoint
    bool internalComputeDFS( size_t x,

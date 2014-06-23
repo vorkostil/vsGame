@@ -11,6 +11,8 @@ static const std::string EXIT_STR( "EXIT" );
 static const std::string VISITED_STR( "VISITED" );
 static const std::string PATH_STR( "PATH" );
 
+static const double MAX_WEIGHT = 1e12;
+
 static const std::string& cellToString( int value )
 {
    if ( value == GraphGrid::PATH )
@@ -43,6 +45,8 @@ GraphGrid::GraphGrid()
    provider( NULL ),
    entryPointX( 0 ),
    entryPointY( 0 ),
+   exitPointX( 0 ),
+   exitPointY( 0 ),
    blockMessage( false )
 {
 }
@@ -64,6 +68,9 @@ void GraphGrid::initializeGraph( GraphGridProvider* provider,
 
    // and initialize the provider
    this->provider = provider;
+
+   // and reset the information for the search purpose
+   this->reset();
 }
 
 // change the value at the given point
@@ -229,74 +236,86 @@ bool GraphGrid::internalComputeDFS( size_t x,
 // call the BFS on the grid
 bool GraphGrid::computeBFS()
 {
-   // create the node list to visit
-   std::vector< GraphCell* > nodeToVisit;
-   nodeToVisit.push_back( getCellAt( entryPointX,
-                                     entryPointY ) );
+   // block message sending
+   blockMessage = true;
 
-   // and visit them
+   // prepare the result
    bool result = false;
-   GraphCell* currentCell;
-   std::vector< GraphCell* > children;
-   while ( nodeToVisit.size() > 0 )
+
+   // check the graph computation visibility
+   if ( isValid() == true )
    {
-      // get the first cell
-      currentCell = *nodeToVisit.begin();
-      nodeToVisit.erase( nodeToVisit.begin() );
+      // create the node list to visit
+      std::vector< GraphCell* > nodeToVisit;
+      nodeToVisit.push_back( getCellAt( entryPointX,
+                                        entryPointY ) );
 
-      // check if the node has already been visited
-      if ( ( currentCell->getValue() & VISITED ) != VISITED )
+      // and visit them
+      GraphCell* currentCell;
+      std::vector< GraphCell* > children;
+      while ( nodeToVisit.size() > 0 )
       {
-         // change the value of the node
-         currentCell->modifyValue( VISITED );
+         // get the first cell
+         currentCell = *nodeToVisit.begin();
+         nodeToVisit.erase( nodeToVisit.begin() );
 
-         // check if the exit is found
-         if ( ( currentCell->getValue() & EXIT ) == EXIT )
+         // check if the node has already been visited
+         if ( ( currentCell->getValue() & VISITED ) != VISITED )
          {
-            // reset the exit value to EXIT
-            currentCell->modifyValue( - VISITED );
+            // change the value of the node
+            currentCell->modifyValue( VISITED );
 
-            // create the path back
-            currentCell = currentCell->getFather();
-            while ( currentCell != NULL )
+            // check if the exit is found
+            if ( ( currentCell->getValue() & EXIT ) == EXIT )
             {
-               currentCell->modifyValue( - VISITED + PATH );
+               // reset the exit value to EXIT
+               currentCell->modifyValue( - VISITED );
+
+               // create the path back
                currentCell = currentCell->getFather();
+               while ( currentCell != NULL )
+               {
+                  currentCell->modifyValue( - VISITED + PATH );
+                  currentCell = currentCell->getFather();
+               }
+
+               // and ask to end
+               result = true;
+               break;
             }
 
-            // and ask to end
-            result = true;
-            break;
-         }
+            // get the children
+            children.clear();
+            currentCell->getChildren( this,
+                                      children );
 
-         // get the children
-         children.clear();
-         currentCell->getChildren( this,
-                                   children );
-
-         // parse all the children
-         for ( std::vector< GraphCell* >::iterator it = children.begin();
-               it != children.end();
-               it++ )
-         {
-            GraphCell* cell = *it;
-
-            // add them if there are not block neither visited
-            if (  ( ( cell->getValue() & BLOCK ) != BLOCK )
-                &&( ( cell->getValue() & VISITED ) != VISITED )  )
+            // parse all the children
+            for ( std::vector< GraphCell* >::iterator it = children.begin();
+                  it != children.end();
+                  it++ )
             {
-               cell->setFather( currentCell );
-               nodeToVisit.push_back( cell );
+               GraphCell* cell = *it;
+
+               // add them if there are not block neither visited
+               if (  ( ( cell->getValue() & BLOCK ) != BLOCK )
+                   &&( ( cell->getValue() & VISITED ) != VISITED )  )
+               {
+                  cell->setFather( currentCell );
+                  nodeToVisit.push_back( cell );
+               }
             }
          }
       }
+
+      // put back the entryPoint to ENTRY (instead of PATH)
+      // TODO manage to exclude the Entry from the Path
+      setValueAt( entryPointX,
+                  entryPointY,
+                  ENTRY );
    }
 
-   // put back the entryPoint to ENTRY (instead of PATH)
-   // TODO manage to exclude the Entry from the Path
-   setValueAt( entryPointX,
-               entryPointY,
-               ENTRY );
+   // allow message sending bakc to normal
+   blockMessage = false;
 
    // if we are here, no path found
    return result;
@@ -305,25 +324,439 @@ bool GraphGrid::computeBFS()
 // call the DIJ on the grid
 bool GraphGrid::computeDIJ()
 {
-   return false;
+   // block message sending
+   blockMessage = true;
+
+   // prepare the result
+   bool result = false;
+
+   // check the graph computation visibility
+   if ( isValid() == true )
+   {
+      // create the node list to visit
+      std::vector< GraphCell* > nodeToVisit;
+      nodeToVisit.push_back( getCellAt( entryPointX,
+                                        entryPointY ) );
+      (*nodeToVisit.begin())->setWeight( 0 );
+
+      // and visit them
+      GraphCell* currentCell;
+      std::vector< GraphCell* > children;
+      while ( nodeToVisit.size() > 0 )
+      {
+         // get the first cell
+         currentCell = *nodeToVisit.begin();
+         nodeToVisit.erase( nodeToVisit.begin() );
+
+         // check if the node has already been visited
+         if ( ( currentCell->getValue() & VISITED ) != VISITED )
+         {
+            // change the value of the node
+            currentCell->modifyValue( VISITED );
+
+            // check if the exit is found
+            if ( ( currentCell->getValue() & EXIT ) == EXIT )
+            {
+               // reset the exit value to EXIT
+               currentCell->modifyValue( - VISITED );
+
+               // create the path back
+               currentCell = currentCell->getFather();
+               while ( currentCell != NULL )
+               {
+                  currentCell->modifyValue( - VISITED + PATH );
+                  currentCell = currentCell->getFather();
+               }
+
+               // and ask to end
+               result = true;
+               break;
+            }
+
+            // get the children
+            children.clear();
+            currentCell->getChildren( this,
+                                       children );
+
+            // parse all the children
+            for ( std::vector< GraphCell* >::iterator it = children.begin();
+                  it != children.end();
+                  it++ )
+            {
+               GraphCell* cell = *it;
+
+               // add them if there are not block neither visited
+               // and if the cost of movement is less than the current cost
+               if (  ( ( cell->getValue() & BLOCK ) != BLOCK )
+                     &&( cell->getWeight() > currentCell->getWeight() + cell->getPathValue() )  )
+               {
+                  cell->setFather( currentCell );
+                  cell->setWeight( currentCell->getWeight() + cell->getPathValue() );
+
+                  bool added = false;
+                  for ( std::vector< GraphCell* >::const_iterator it = nodeToVisit.begin();
+                        it != nodeToVisit.end();
+                        it++ )
+                  {
+                     if ( cell->getWeight() < (*it)->getWeight() )
+                     {
+                        nodeToVisit.insert( it,
+                                            cell );
+                        added = true;
+                        break;
+                     }
+                  }
+                  if ( added == false )
+                  {
+                     nodeToVisit.push_back( cell );
+                  }
+               }
+            }
+         }
+      }
+
+      // put back the entryPoint to ENTRY (instead of PATH)
+      // TODO manage to exclude the Entry from the Path
+      setValueAt( entryPointX,
+                  entryPointY,
+                  ENTRY );
+   }
+
+   // allow message sending bakc to normal
+   blockMessage = false;
+
+   // if we are here, no path found
+   return result;
 }
 
 // call the A* on the grid
 bool GraphGrid::computeAstar()
 {
-   return false;
+   // block message sending
+   blockMessage = true;
+
+   // prepare the result
+   bool result = false;
+
+   // check the graph computation visibility
+   if ( isValidForAstar() == true )
+   {
+      // create the node list to visit
+      std::vector< GraphCell* > nodeToVisit;
+      nodeToVisit.push_back( getCellAt( entryPointX,
+                                        entryPointY ) );
+      (*nodeToVisit.begin())->setWeight( 0 );
+
+      // and visit them
+      bool result = false;
+      GraphCell* currentCell;
+      std::vector< GraphCell* > children;
+      while ( nodeToVisit.size() > 0 )
+      {
+         // get the first cell
+         currentCell = *nodeToVisit.begin();
+         nodeToVisit.erase( nodeToVisit.begin() );
+
+         // change the value of the node to mark it as visited
+         if ( ( currentCell->getValue() & VISITED ) != VISITED )
+         {
+            currentCell->modifyValue( VISITED );
+
+            // check if the exit is found
+            if ( ( currentCell->getValue() & EXIT ) == EXIT )
+            {
+               // reset the exit value to EXIT
+               currentCell->modifyValue( - VISITED );
+
+               // create the path back
+               currentCell = currentCell->getFather();
+               while ( currentCell != NULL )
+               {
+                  currentCell->modifyValue( - VISITED + PATH );
+                  currentCell = currentCell->getFather();
+               }
+
+               // and ask to end
+               result = true;
+               break;
+            }
+
+            // get the children
+            children.clear();
+            currentCell->getChildren( this,
+                                       children );
+
+            // parse all the children
+            for ( std::vector< GraphCell* >::iterator it = children.begin();
+                  it != children.end();
+                  it++ )
+            {
+               GraphCell* cell = *it;
+
+               // add them if there are not block neither visited
+               // and if the cost of movement is less than the current cost
+               if (  ( ( cell->getValue() & BLOCK ) != BLOCK )
+                   &&( cell->getWeight() > currentCell->getWeight() + cell->getPathValue() )  )
+               {
+                  cell->setFather( currentCell );
+                  cell->setWeight(currentCell->getWeight() + cell->getPathValue() );
+
+                  bool added = false;
+                  for ( std::vector< GraphCell* >::const_iterator it = nodeToVisit.begin();
+                        it != nodeToVisit.end();
+                        it++ )
+                  {
+                     if ( cell->getWeight() + cell->getEuclide( exitPointX,
+                                                                exitPointY ) < (*it)->getWeight() + (*it)->getEuclide( exitPointX,
+                                                                                                                       exitPointY ) )
+                     {
+                        nodeToVisit.insert( it,
+                                            cell );
+                        added = true;
+                        break;
+                     }
+                  }
+                  if ( added == false )
+                  {
+                     nodeToVisit.push_back( cell );
+                  }
+               }
+            }
+         }
+      }
+
+      // put back the entryPoint to ENTRY (instead of PATH)
+      // TODO manage to exclude the Entry from the Path
+      setValueAt( entryPointX,
+                  entryPointY,
+                  ENTRY );
+   }
+
+   // allow message sending bakc to normal
+   blockMessage = false;
+
+   // if we are here, no path found
+   return result;
 }
 
 // call the A* manhattan on the grid
 bool GraphGrid::computeAstarM()
 {
-   return false;
+   // block message sending
+   blockMessage = true;
+
+   // prepare the result
+   bool result = false;
+
+   // check the graph computation visibility
+   if ( isValidForAstar() == true )
+   {
+      // create the node list to visit
+      std::vector< GraphCell* > nodeToVisit;
+      nodeToVisit.push_back( getCellAt( entryPointX,
+                                        entryPointY ) );
+      (*nodeToVisit.begin())->setWeight( 0 );
+
+      // and visit them
+      bool result = false;
+      GraphCell* currentCell;
+      std::vector< GraphCell* > children;
+      while ( nodeToVisit.size() > 0 )
+      {
+         // get the first cell
+         currentCell = *nodeToVisit.begin();
+         nodeToVisit.erase( nodeToVisit.begin() );
+
+         // change the value of the node to mark it as visited
+         if ( ( currentCell->getValue() & VISITED ) != VISITED )
+         {
+            currentCell->modifyValue( VISITED );
+
+            // check if the exit is found
+            if ( ( currentCell->getValue() & EXIT ) == EXIT )
+            {
+               // reset the exit value to EXIT
+               currentCell->modifyValue( - VISITED );
+
+               // create the path back
+               currentCell = currentCell->getFather();
+               while ( currentCell != NULL )
+               {
+                  currentCell->modifyValue( - VISITED + PATH );
+                  currentCell = currentCell->getFather();
+               }
+
+               // and ask to end
+               result = true;
+               break;
+            }
+
+            // get the children
+            children.clear();
+            currentCell->getChildren( this,
+                                       children );
+
+            // parse all the children
+            for ( std::vector< GraphCell* >::iterator it = children.begin();
+                  it != children.end();
+                  it++ )
+            {
+               GraphCell* cell = *it;
+
+               // add them if there are not block neither visited
+               // and if the cost of movement is less than the current cost
+               if (  ( ( cell->getValue() & BLOCK ) != BLOCK )
+                   &&( cell->getWeight() > currentCell->getWeight() + cell->getPathValue() )  )
+               {
+                  cell->setFather( currentCell );
+                  cell->setWeight(currentCell->getWeight() + cell->getPathValue() );
+
+                  bool added = false;
+                  for ( std::vector< GraphCell* >::const_iterator it = nodeToVisit.begin();
+                        it != nodeToVisit.end();
+                        it++ )
+                  {
+                     if ( cell->getWeight() + cell->getManahattan( exitPointX,
+                                                                   exitPointY ) < (*it)->getWeight() + (*it)->getManahattan( exitPointX,
+                                                                                                                             exitPointY ) )
+                     {
+                        nodeToVisit.insert( it,
+                                            cell );
+                        added = true;
+                        break;
+                     }
+                  }
+                  if ( added == false )
+                  {
+                     nodeToVisit.push_back( cell );
+                  }
+               }
+            }
+         }
+      }
+
+      // put back the entryPoint to ENTRY (instead of PATH)
+      // TODO manage to exclude the Entry from the Path
+      setValueAt( entryPointX,
+                  entryPointY,
+                  ENTRY );
+   }
+
+   // allow message sending bakc to normal
+   blockMessage = false;
+
+   // if we are here, no path found
+   return result;
 }
 
 // call the A* manhattan epsilon on the grid
 bool GraphGrid::computeAstarME()
 {
-   return false;
+   // block message sending
+   blockMessage = true;
+
+   // prepare the result
+   bool result = false;
+
+   // check the graph computation visibility
+   if ( isValidForAstar() == true )
+   {
+      // create the node list to visit
+      std::vector< GraphCell* > nodeToVisit;
+      nodeToVisit.push_back( getCellAt( entryPointX,
+                                        entryPointY ) );
+      (*nodeToVisit.begin())->setWeight( 0 );
+
+      // and visit them
+      bool result = false;
+      GraphCell* currentCell;
+      std::vector< GraphCell* > children;
+      while ( nodeToVisit.size() > 0 )
+      {
+         // get the first cell
+         currentCell = *nodeToVisit.begin();
+         nodeToVisit.erase( nodeToVisit.begin() );
+
+         // change the value of the node to mark it as visited
+         if ( ( currentCell->getValue() & VISITED ) != VISITED )
+         {
+            currentCell->modifyValue( VISITED );
+
+            // check if the exit is found
+            if ( ( currentCell->getValue() & EXIT ) == EXIT )
+            {
+               // reset the exit value to EXIT
+               currentCell->modifyValue( - VISITED );
+
+               // create the path back
+               currentCell = currentCell->getFather();
+               while ( currentCell != NULL )
+               {
+                  currentCell->modifyValue( - VISITED + PATH );
+                  currentCell = currentCell->getFather();
+               }
+
+               // and ask to end
+               result = true;
+               break;
+            }
+
+            // get the children
+            children.clear();
+            currentCell->getChildren( this,
+                                       children );
+
+            // parse all the children
+            for ( std::vector< GraphCell* >::iterator it = children.begin();
+                  it != children.end();
+                  it++ )
+            {
+               GraphCell* cell = *it;
+
+               // add them if there are not block neither visited
+               // and if the cost of movement is less than the current cost
+               if (  ( ( cell->getValue() & BLOCK ) != BLOCK )
+                   &&( cell->getWeight() > currentCell->getWeight() + cell->getPathValue() )  )
+               {
+                  cell->setFather( currentCell );
+                  cell->setWeight(currentCell->getWeight() + cell->getPathValue() );
+
+                  bool added = false;
+                  for ( std::vector< GraphCell* >::const_iterator it = nodeToVisit.begin();
+                        it != nodeToVisit.end();
+                        it++ )
+                  {
+                     if ( cell->getWeight() + cell->getManahattanEpsilon( exitPointX,
+                                                                          exitPointY ) < (*it)->getWeight() + (*it)->getManahattanEpsilon( exitPointX,
+                                                                                                                                           exitPointY ) )
+                     {
+                        nodeToVisit.insert( it,
+                                            cell );
+                        added = true;
+                        break;
+                     }
+                  }
+                  if ( added == false )
+                  {
+                     nodeToVisit.push_back( cell );
+                  }
+               }
+            }
+         }
+      }
+
+      // put back the entryPoint to ENTRY (instead of PATH)
+      // TODO manage to exclude the Entry from the Path
+      setValueAt( entryPointX,
+                  entryPointY,
+                  ENTRY );
+   }
+
+   // allow message sending bakc to normal
+   blockMessage = false;
+
+   // if we are here, no path found
+   return result;
 }
 
 // check the grpah validity before computation
@@ -340,6 +773,26 @@ bool GraphGrid::isValid()
       }
    }
    return false;
+}
+
+// check the grpah validity before A* computation
+// only one EXIT
+bool GraphGrid::isValidForAstar()
+{
+   int exitNumber = 0;
+   for ( std::vector< GraphCell* >::const_iterator it = getCells().begin();
+         it != getCells().end();
+         it++ )
+   {
+      if ( (*it)->getValue() == EXIT )
+      {
+         exitPointX = (*it)->getX();
+         exitPointY = (*it)->getY();
+
+         exitNumber++;
+      }
+   }
+   return ( exitNumber == 1 );
 }
 
 // display the cells on the stream
@@ -389,6 +842,7 @@ void GraphGrid::display( std::ostream& out,
 }
 
 // reset the graph information to remove the VISITED and PATH informatio
+// also reweight each cell to MAX_WEIGHT and reset the exitPoint to 0,0
 void GraphGrid::reset()
 {
    for ( std::vector< GraphCell* >::iterator it = getCells().begin();
@@ -405,5 +859,10 @@ void GraphGrid::reset()
          (*it)->modifyValue( -PATH );
          (*it)->resetFather();
       }
+
+      (*it)->setWeight( MAX_WEIGHT );
    }
+
+   exitPointX = 0;
+   exitPointY = 0;
 }
