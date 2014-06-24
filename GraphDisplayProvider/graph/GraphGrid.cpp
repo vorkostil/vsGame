@@ -1,17 +1,9 @@
 #include "GraphGrid.hpp"
 #include "GraphGridProvider.hpp"
 #include "GraphCell.hpp"
+#include "common.hpp"
 #include <iostream>
 #include <string>
-
-static const std::string EMPTY_STR( "EMPTY" );
-static const std::string BLOCK_STR( "BLOCK" );
-static const std::string START_STR( "START" );
-static const std::string EXIT_STR( "EXIT" );
-static const std::string VISITED_STR( "VISITED" );
-static const std::string PATH_STR( "PATH" );
-
-static const double MAX_WEIGHT = 1e12;
 
 static const std::string& cellToString( int value )
 {
@@ -35,7 +27,23 @@ static const std::string& cellToString( int value )
    {
       return BLOCK_STR;
    }
-   return EMPTY_STR;
+   else if ( value == GraphGrid::WATER )
+   {
+      return WATER_STR;
+   }
+   else if ( value == GraphGrid::ROAD )
+   {
+      return ROAD_STR;
+   }
+   else if ( value == GraphGrid::FOREST )
+   {
+      return FOREST_STR;
+   }
+   else if ( value == GraphGrid::HILL )
+   {
+      return HILL_STR;
+   }
+   return GRASS_STR;
 }
 
 // ctor
@@ -83,21 +91,46 @@ bool GraphGrid::setValueAt( size_t x,
    {
       Grid::setValueAt( entryPointX,
                         entryPointY,
-                        EMPTY );
+                        GRASS );
+      getCellAt( x, y )->setWeight( GRASS_PATH_VALUE );
 
       if ( blockMessage == false )
       {
          provider->sendMessageChangeCell( entryPointX,
                                           entryPointY,
-                                          EMPTY_STR );
+                                          GRASS_STR );
       }
 
       entryPointX = x;
       entryPointY = y;
    }
 
+   // set the value
    if ( Grid::setValueAt( x, y, v ) == true )
    {
+      // change the weight if needed
+      if ( v == GRASS )
+      {
+         getCellAt( x, y )->setPathValue( GRASS_PATH_VALUE );
+      }
+      else if ( v == EXIT )
+      {
+         getCellAt( x, y )->setPathValue( EXIT_PATH_VALUE );
+      }
+      else if ( v == ROAD )
+      {
+         getCellAt( x, y )->setPathValue( ROAD_PATH_VALUE );
+      }
+      else if ( v == FOREST )
+      {
+         getCellAt( x, y )->setPathValue( FOREST_PATH_VALUE );
+      }
+      else if ( v == HILL )
+      {
+         getCellAt( x, y )->setPathValue( HILL_PATH_VALUE );
+      }
+
+      // send the message
       if ( blockMessage == false )
       {
          provider->sendMessageChangeCell( x,
@@ -116,7 +149,7 @@ bool GraphGrid::setValueAt( size_t x,
                             size_t y,
                             const std::string& value )
 {
-   int v = EMPTY;
+   int v = GRASS;
    if (  ( value == BLOCK_STR )
        &&( getValueAt( x,
                        y ) != BLOCK )  )
@@ -126,6 +159,22 @@ bool GraphGrid::setValueAt( size_t x,
    else if ( value == START_STR )
    {
       v = ENTRY;
+   }
+   else if ( value == WATER_STR )
+   {
+      v = WATER;
+   }
+   else if ( value == ROAD_STR )
+   {
+      v = ROAD;
+   }
+   else if ( value == FOREST_STR )
+   {
+      v = FOREST;
+   }
+   else if ( value == HILL_STR )
+   {
+      v = HILL;
    }
    else if (  ( value == EXIT_STR )
             &&( getValueAt( x,
@@ -179,6 +228,7 @@ bool GraphGrid::internalComputeDFS( size_t x,
       return true;
    }
    else if (  ( ( currentValue & BLOCK ) == BLOCK )
+            ||( ( currentValue & WATER ) == WATER )
             ||( ( currentValue & VISITED ) == VISITED )
             ||( currentValue == -1 )  )
    {
@@ -298,6 +348,7 @@ bool GraphGrid::computeBFS()
 
                // add them if there are not block neither visited
                if (  ( ( cell->getValue() & BLOCK ) != BLOCK )
+                   &&( ( cell->getValue() & WATER ) != WATER )
                    &&( ( cell->getValue() & VISITED ) != VISITED )  )
                {
                   cell->setFather( currentCell );
@@ -388,7 +439,8 @@ bool GraphGrid::computeDIJ()
                // add them if there are not block neither visited
                // and if the cost of movement is less than the current cost
                if (  ( ( cell->getValue() & BLOCK ) != BLOCK )
-                     &&( cell->getWeight() > currentCell->getWeight() + cell->getPathValue() )  )
+                   &&( ( cell->getValue() & WATER ) != WATER )
+                   &&( cell->getWeight() > currentCell->getWeight() + cell->getPathValue() )  )
                {
                   cell->setFather( currentCell );
                   cell->setWeight( currentCell->getWeight() + cell->getPathValue() );
@@ -496,6 +548,7 @@ bool GraphGrid::computeAstar()
                // add them if there are not block neither visited
                // and if the cost of movement is less than the current cost
                if (  ( ( cell->getValue() & BLOCK ) != BLOCK )
+                   &&( ( cell->getValue() & WATER ) != WATER )
                    &&( cell->getWeight() > currentCell->getWeight() + cell->getPathValue() )  )
                {
                   cell->setFather( currentCell );
@@ -606,6 +659,7 @@ bool GraphGrid::computeAstarM()
                // add them if there are not block neither visited
                // and if the cost of movement is less than the current cost
                if (  ( ( cell->getValue() & BLOCK ) != BLOCK )
+                   &&( ( cell->getValue() & WATER ) != WATER )
                    &&( cell->getWeight() > currentCell->getWeight() + cell->getPathValue() )  )
                {
                   cell->setFather( currentCell );
@@ -716,6 +770,7 @@ bool GraphGrid::computeAstarME()
                // add them if there are not block neither visited
                // and if the cost of movement is less than the current cost
                if (  ( ( cell->getValue() & BLOCK ) != BLOCK )
+                   &&( ( cell->getValue() & WATER ) != WATER )
                    &&( cell->getWeight() > currentCell->getWeight() + cell->getPathValue() )  )
                {
                   cell->setFather( currentCell );
@@ -828,6 +883,22 @@ void GraphGrid::display( std::ostream& out,
          {
             out << 'X';
          }
+         else if ( ( currentValue & WATER ) == WATER )
+         {
+            out << 'W';
+         }
+         else if ( ( currentValue & ROAD ) == ROAD )
+         {
+            out << 'R';
+         }
+         else if ( ( currentValue & FOREST ) == FOREST )
+         {
+            out << 'F';
+         }
+         else if ( ( currentValue & HILL ) == HILL )
+         {
+            out << 'M';
+         }
          else 
          {
             out << '0';
@@ -845,6 +916,10 @@ void GraphGrid::display( std::ostream& out,
 // also reweight each cell to MAX_WEIGHT and reset the exitPoint to 0,0
 void GraphGrid::reset()
 {
+   // block message sending
+   blockMessage = true;
+
+   // reset the graph's path
    for ( std::vector< GraphCell* >::iterator it = getCells().begin();
          it != getCells().end();
          it++ )
@@ -865,4 +940,37 @@ void GraphGrid::reset()
 
    exitPointX = 0;
    exitPointY = 0;
+
+   // unblock message sending
+   blockMessage = false;
 }
+
+// clear the graph information to remove all information and set the entry back to 0,0
+void GraphGrid::clear()
+{
+   // block message sending
+   blockMessage = true;
+
+   // reset the graph
+   reset();
+
+   // then clear the graph
+   for ( std::vector< GraphCell* >::iterator it = getCells().begin();
+         it != getCells().end();
+         it++ )
+   {
+      (*it)->setValue( GRASS );
+      (*it)->setPathValue( GRASS_PATH_VALUE );
+   }
+
+   entryPointX = 0;
+   entryPointY = 0;
+
+   setValueAt( 0, 
+               0, 
+               ENTRY );
+
+   // unblock message sending
+   blockMessage = false;
+}
+

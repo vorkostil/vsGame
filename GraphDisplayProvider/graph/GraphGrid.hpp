@@ -25,10 +25,14 @@ public:
    // cells content
    typedef enum
    {
-      EMPTY   = 0,
+      GRASS   = 0,
       ENTRY   = 1,
       EXIT    = 2,
       BLOCK   = 4,
+      WATER   = 8,
+      ROAD    = 16,
+      FOREST  = 32,
+      HILL    = 64,
       VISITED = 128,
       PATH    = 256
    } Content;
@@ -80,6 +84,9 @@ public:
 
    // reset the graph information to remove the VISITED and PATH information
    void reset();
+
+   // clear the graph information to remove all information and set the entry back to 0,0
+   void clear();
 
 protected:
    // check the grpah validity before computation

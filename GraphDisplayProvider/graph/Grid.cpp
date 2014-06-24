@@ -64,7 +64,7 @@ int Grid::getValueAt( size_t x,
 }
 
 GraphCell* Grid::getCellAt( size_t x,
-                            size_t y ) const
+                            size_t y )
 {
    return cells[ y * width + x ];
 }

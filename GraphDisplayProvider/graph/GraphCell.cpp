@@ -1,5 +1,6 @@
 #include "graphCell.hpp"
 #include "Grid.hpp"
+#include "common.hpp"
 
 // ctor
 GraphCell::GraphCell( size_t x,
@@ -10,7 +11,7 @@ GraphCell::GraphCell( size_t x,
    father( NULL ),
    weight( 0 ),
    value( 0 ),
-   pathValue( 1 )
+   pathValue( GRASS_PATH_VALUE )
 {
 }
 

@@ -55,6 +55,9 @@ private:
    // call the reset on the graph and send the result as a compute result
    void callReset();
 
+   // call the clear all on the graph and send the result as a compute result
+   void callClear();
+
    // create he compute result message given the result expected
    // and send the message
    void sendComputeResult( const std::string& result );

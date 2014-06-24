@@ -39,7 +39,7 @@ public:
 
    // get the cell at given point
    virtual GraphCell* getCellAt( size_t x,
-                                 size_t y ) const;
+                                 size_t y );
 
    // display the cells on the stream
    virtual void display( std::ostream& out,

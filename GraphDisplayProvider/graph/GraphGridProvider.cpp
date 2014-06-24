@@ -17,6 +17,7 @@ static const std::string EUCLIDE( "EUCLIDE" );
 static const std::string MANHATTAN( "MANHATTAN" );
 static const std::string EPSILON( "EPSILON" );
 static const std::string RESET_PATH( "RESET_PATH" );
+static const std::string CLEAR_GRAPH( "CLEAR_GRAPH" );
 
 // default ctor
 GraphGridProvider::GraphGridProvider( size_t width,
@@ -80,6 +81,16 @@ void GraphGridProvider::callReset()
 
    // and send the result
    sendComputeResult( "RESET" );
+}
+
+// call the clear all on the graph and send the result as a compute result
+void GraphGridProvider::callClear()
+{
+   // call the reset
+   graphGrid.clear();
+
+   // and send the result
+   sendComputeResult( "CLEAR" );
 }
 
 // create he compute result message given the result expected
@@ -206,5 +217,9 @@ void GraphGridProvider::handleGameMessage( const std::string& message )
    else if ( messageParts[ 0 ] == RESET_PATH )
    {
       callReset();
+   }
+   else if ( messageParts[ 0 ] == CLEAR_GRAPH )
+   {
+      callClear();
    }
 }
