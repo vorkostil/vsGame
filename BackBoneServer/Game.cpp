@@ -160,3 +160,9 @@ ClientList Game::getClients() const
 {
    return consumers;
 }
+
+// return the kind of the game
+const std::string& Game::getKind() const
+{
+   return gameDefinition.kind;
+}

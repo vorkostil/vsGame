@@ -86,6 +86,16 @@ private:
    void requestGame( ClientConnectionPtr connection,
                      const std::string& gameKind );
 
+   // join the first non full game
+   // or request a game to the server given its kind if no game exist or all is full
+   // compute the available player if needed
+   // respond to the connection
+   //     'SYSTEM_JOIN_ORREQUEST_GAME GameKind'
+   //             'SYSTEM_REQUEST_GAME_REFUSED ErrorMessage'
+   //             'SYSTEM_REQUEST_GAME_ACCEPTED GameId #Consumer [Consumer]'
+   void joinOrRequestGame( ClientConnectionPtr connection,
+                           const std::string& gameKind );
+
    // join a known game given its gameId
    //     'SYSTEM_JOIN_GAME GameId'
    //          'SYSTEM_JOIN_GAME_REFUSED message'

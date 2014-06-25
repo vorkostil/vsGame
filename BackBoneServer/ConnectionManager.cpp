@@ -105,6 +105,11 @@ void ConnectionManager::handleMessage( ClientConnectionPtr connection,
          requestGame( connection,
                       messageParts[ 1 ] );
       }
+      else if ( messageParts[ 0 ] == SYSTEM_JOIN_OR_REQUEST_GAME )
+      {
+         joinOrRequestGame( connection,
+                            messageParts[ 1 ] );
+      }
       else if ( messageParts[ 0 ] == SYSTEM_JOIN_GAME )
       {
          joinGame( connection,
@@ -392,6 +397,46 @@ void ConnectionManager::requestGame( ClientConnectionPtr connection,
    else
    {
       connection->sendMessage( GAME_MESSAGE + " " + GAME_REFUSED + " No server found to handle this game" );
+   }
+}
+
+// join the first non full game
+// or request a game to the server given its kind if no game exist or all is full
+// compute the available player if needed
+// respond to the connection
+//     'SYSTEM_JOIN_ORREQUEST_GAME GameKind'
+//             'SYSTEM_REQUEST_GAME_REFUSED ErrorMessage'
+//             'SYSTEM_REQUEST_GAME_ACCEPTED GameId #Consumer [Consumer]'
+void ConnectionManager::joinOrRequestGame( ClientConnectionPtr connection,
+                                           const std::string& gameKind )
+{
+   bool gameFound = false;
+
+   // check if there is avaialble game 
+   for ( GameMap::iterator itGame = games.begin();
+         itGame != games.end();
+         itGame++ )
+   {
+      Game* game = itGame->second;
+
+      // check if the game is of good kind and if there is enough places
+      if (  ( game->getKind() == gameKind )
+          &&( game->placeAvailable() == true )  )
+      {
+         // send the accept message to the client
+         connection->sendMessage( GAME_MESSAGE + " " + GAME_ACCEPTED + " " + game->getId() + " " + gameKind );
+
+         // and quit the function
+         gameFound = true;
+         break;
+      }
+   }
+
+   // check if there is a need of a new game
+   if ( gameFound == false )
+   {
+      requestGame( connection,
+                   gameKind );
    }
 }
 

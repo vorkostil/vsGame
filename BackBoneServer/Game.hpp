@@ -53,4 +53,7 @@ public:
 
    // return the clients
    ClientList getClients() const;
+
+   // return the kind of the game
+   const std::string& getKind() const;
 };
