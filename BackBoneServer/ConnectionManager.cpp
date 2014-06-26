@@ -99,26 +99,31 @@ void ConnectionManager::handleMessage( ClientConnectionPtr connection,
       {
          registerConnection( connection,
                              messageParts[ 1 ] );
+         dumpCurrentState();
       }
       else if ( messageParts[ 0 ] == SYSTEM_REQUEST_GAME )
       {
          requestGame( connection,
                       messageParts[ 1 ] );
+         dumpCurrentState();
       }
       else if ( messageParts[ 0 ] == SYSTEM_JOIN_OR_REQUEST_GAME )
       {
          joinOrRequestGame( connection,
                             messageParts[ 1 ] );
+         dumpCurrentState();
       }
       else if ( messageParts[ 0 ] == SYSTEM_JOIN_GAME )
       {
          joinGame( connection,
                    messageParts[ 1 ] );
+         dumpCurrentState();
       }
       else if ( messageParts[ 0 ] == SYSTEM_LEAVE_GAME )
       {
          leaveGame( connection,
                     messageParts[ 1 ] );
+         dumpCurrentState();
       }
       else if ( messageParts[ 0 ] == SYSTEM_GAME_CREATION_REFUSED )
       {
@@ -133,6 +138,7 @@ void ConnectionManager::handleMessage( ClientConnectionPtr connection,
          closeGame( connection,
                     messageInformation[ 0 ],
                     messageInformation[ 1 ] );
+         dumpCurrentState();
       }
       else if ( messageParts[ 0 ] == GAME_MESSAGE )
       {
@@ -148,7 +154,6 @@ void ConnectionManager::handleMessage( ClientConnectionPtr connection,
                             messageInformation[ 0 ],
                             message );
       }
-      dumpCurrentState();
    }
 }
 

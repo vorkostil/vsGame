@@ -51,6 +51,9 @@ void Game::addConsumer( ClientConnectionPtr consumer )
    if ( consumers.find( consumer ) == consumers.end() )
    {
       consumers.insert( consumer );
+
+      // send the add consumer message to the provider
+      provider->sendMessage( GAME_MESSAGE + " " + id + " " + PLAYER_JOIN_MESSAGE + " " + consumer->getLogin() );
    }
 }
 
@@ -118,6 +121,10 @@ bool Game::remove( ClientConnectionPtr connection )
       if ( *itConsumer == connection )
       {
          consumers.erase( itConsumer );
+
+         // send the add consumer message to the provider
+         provider->sendMessage( GAME_MESSAGE + " " + id + " " + PLAYER_LEAVE_MESSAGE + " " + connection->getLogin() );
+
          break;
       }
    }

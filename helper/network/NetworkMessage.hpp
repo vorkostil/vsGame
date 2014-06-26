@@ -26,3 +26,6 @@ static const std::string GAME_JOIN_REFUSED( "GAME_JOIN_REFUSED" );
 
 static const std::string CLOSE_MESSAGE( "CLOSE" );
 static const std::string GAME_MESSAGE( "GAME_MESSAGE" );
+
+static const std::string PLAYER_JOIN_MESSAGE( "PLAYER_JOIN_MESSAGE" );
+static const std::string PLAYER_LEAVE_MESSAGE( "PLAYER_LEAVE_MESSAGE" );
