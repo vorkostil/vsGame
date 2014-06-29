@@ -5,6 +5,7 @@
 #include "ClientConnection.hpp"
 #include "ConnectionManager.hpp"
 #include "network/NetworkMessage.hpp"
+#include "logger/asyncLogger.hpp"
 
 ClientConnection::ClientConnection( const std::string& technicalId,
                                     ConnectionManager* connectionManager,
@@ -18,12 +19,12 @@ ClientConnection::ClientConnection( const std::string& technicalId,
    currentState( INIT ),
    load( 0 )
 {
-	std::cout << "ClientConnection> " << "New client conncection created> " << technicalId << std::endl;
+   AsyncLogger::getInstance()->log( "ClientConnection> New client connection created> " + technicalId );
 }
 
 ClientConnection::~ClientConnection() 
 { 
-	std::cout << "ClientConnection (" << technicalId << ") > Session destroyed" << std::endl;
+	AsyncLogger::getInstance()->log( "ClientConnection (" + technicalId + ") > Session destroyed" );
 }
 
 const std::string& ClientConnection::getTechnicalId() const
@@ -59,7 +60,7 @@ void ClientConnection::askForLogin()
 
 void ClientConnection::sendMessage(const std::string& message)
 {
-   std::cout << "ClientConnection (" << technicalId << ") writing: " << message << std::endl;
+   AsyncLogger::getInstance()->log( "WRITING TO (" + technicalId + "): " + message );
 
    // send the message on the network
    connection->asyncWrite( message + '\0',
@@ -83,7 +84,10 @@ void ClientConnection::handleRead( const boost::system::error_code& error )
 	else
 	{
       // if an error occurs, close the connection
-      std::cout << "ClientConnection (" << technicalId << ") > handleRead call with error code: " << error.value() << " --> " << error.message() << std::endl;
+      std::stringstream stream;
+      stream << "ClientConnection (" << technicalId << ") > handleRead call with error code: " << error.value() << " --> " << error.message();
+      AsyncLogger::getInstance()->log( stream.str() );
+
       connectionManager->closeConnection( shared_from_this() );
 	}
 }
@@ -120,7 +124,7 @@ void ClientConnection::handleReadInThread( const std::string& messageToTreat )
          sendMessage( MESSAGE_LOGIN_REFUSED );
 
          // and close the socket
-         std::cout << "ClientConnection (" << technicalId << ") > login refused: " << login << " | " << passwd << std::endl;
+         AsyncLogger::getInstance()->log( "ClientConnection (" + technicalId + ") > login refused: " + login + " | " + passwd );
          connectionManager->closeConnection( shared_from_this() );
       }
    }
@@ -130,7 +134,7 @@ void ClientConnection::handleReadInThread( const std::string& messageToTreat )
       if ( message == MESSAGE_CLOSE )
       {
          // close the communication
-         std::cout << "ClientConnection (" << technicalId << ") > close connection" << std::endl;
+         AsyncLogger::getInstance()->log( "ClientConnection (" + technicalId + ") > close connection" );
          connectionManager->closeConnection( shared_from_this() );
       }
       else
@@ -147,7 +151,10 @@ void ClientConnection::handleWrite( const boost::system::error_code& error )
    // if an error occurs, close the connection
 	if ( error != 0 )
 	{
-      std::cout << "ClientConnection (" << technicalId << ") > handleWrite call with error code: " << error.value() << " --> " << error.message() << std::endl;
+      std::stringstream stream;
+      stream << "ClientConnection (" << technicalId << ") > handleWrite call with error code: " << error.value() << " --> " << error.message();
+      AsyncLogger::getInstance()->log( stream.str() );
+
       connectionManager->closeConnection( shared_from_this() );
 	}
 }

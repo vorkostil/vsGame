@@ -162,14 +162,17 @@ void ProviderManager::sendMessage( const std::string& message )
 // should be call inside the mutex
 void ProviderManager::dumpCurrentState() const
 {
-   std::cout << "----------------------------------------------------------------------------------------" << std::endl;
-   std::cout << "games: " << gamePool.size() << " / " << MAX_GAME_POOL_SIZE << std::endl;
-   std::cout << "----------------------------------------------------------------------------------------" << std::endl;
+   std::stringstream stream;
+   stream << std::endl;
+   stream << "----------------------------------------------------------------------------------------" << std::endl;
+   stream << "games: " << gamePool.size() << " / " << MAX_GAME_POOL_SIZE << std::endl;
+   stream << "----------------------------------------------------------------------------------------" << std::endl;
    for ( GamePool::const_iterator it = gamePool.begin();
          it != gamePool.end();
          it++ )
    {
-      std::cout << "\t" << it->first << std::endl;
+      stream << "\t" << it->first << std::endl;
    }
-   std::cout << "----------------------------------------------------------------------------------------" << std::endl;
+   stream << "----------------------------------------------------------------------------------------" << std::endl;
+   AsyncLogger::getInstance()->log( stream.str() );
 }

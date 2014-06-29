@@ -3,6 +3,8 @@
 #include <boost/asio.hpp>
 #include <boost/tuple/tuple.hpp>
 #include <boost/array.hpp>
+#include <boost/thread/mutex.hpp>
+#include "../logger/asyncLogger.hpp"
 
 #define SOCKET_READ_SIZE 1024
 
@@ -24,6 +26,9 @@ private:
    // the buffer sued to store message grater than SOCKET_READ_SIZE
    std::string readMessage;
 
+   // the write mutex
+   boost::mutex writeMutex;
+
 public:
    // Create a cimple tcp connection to exchange async message
 	SimpleTcpConnection( boost::asio::io_service& boostReactor )
@@ -32,7 +37,16 @@ public:
       readBuffer(),
       readMessage()
    {
-      std::cout << "SimpleTcpConnection> SimpleTcpConnection created" << std::endl;
+      AsyncLogger::getInstance()->log( "SimpleTcpConnection> SimpleTcpConnection created" );
+   }
+
+   // dtor
+   ~SimpleTcpConnection()
+   {
+      // wait for the message to be sent
+      // it's awful but it works
+      writeMutex.lock();
+      writeMutex.unlock();
    }
 
    // get the current boost socket
@@ -52,11 +66,13 @@ public:
 	void asyncWrite( const std::string& message, 
                     Handler handler )
    {
-      // write the message on the socket
-	   outMessage = message;
-	   boost::asio::async_write( connectionSocket, 
-                                boost::asio::buffer( outMessage ),
-                                handler );
+      writeMutex.lock();
+      /*|*/ // write the message on the socket
+	   /*|*/ outMessage = message;
+	   /*|*/ boost::asio::async_write( connectionSocket, 
+      /*|*/                           boost::asio::buffer( outMessage ),
+      /*|*/                           handler );
+      writeMutex.unlock();
    }
 
 	// asynchronous read using the handler for callback
@@ -64,7 +80,9 @@ public:
 	void asyncRead( std::string& message, 
                    Handler handler )
    {
-      std::cout << "SimpleTcpConnection> Reading on the socket ..." << std::endl;
+#ifdef __DEBUG__
+      AsyncLogger::getInstance()->log( "SimpleTcpConnection> Reading on the socket ..." );
+#endif
 
       // initialize the buffer 
       readBuffer.clear();
@@ -95,8 +113,11 @@ private:
 	                 std::string& message, 
                     boost::tuple< Handler > handler )
    {
-      std::cout << "SimpleTcpConnection> Message received (" << readBuffer.size() << ") - (" << numberOfBytes << "): '@'" << readBuffer.data() << "'@'" << std::endl;
-
+#ifdef __DEBUG
+      std::stringstream stream;
+      stream << "SimpleTcpConnection> Message received (" << readBuffer.size() << ") - (" << numberOfBytes << "): '@'" << readBuffer.data() << "'@'" << std::endl;
+      AsyncLogger::getInstance()->log( stream.str() );
+#endif
       // check if an error occurs
       if ( error )
       {

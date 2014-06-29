@@ -10,6 +10,8 @@ static const std::string MESSAGE_CLOSE( "SYSTEM_CLOSE_CONNECTION" );
 
 static const std::string SYSTEM_REGISTER( "SYSTEM_REGISTER" );
 static const std::string SYSTEM_REQUEST_GAME( "SYSTEM_REQUEST_GAME" );
+static const std::string SYSTEM_REQUEST_GAME_LIST( "SYSTEM_REQUEST_GAME_LIST" );
+static const std::string SYSTEM_REQUEST_GAME_LIST_RESULT( "SYSTEM_REQUEST_GAME_LIST_RESULT" );
 static const std::string SYSTEM_JOIN_OR_REQUEST_GAME( "SYSTEM_JOIN_OR_REQUEST_GAME" );
 static const std::string SYSTEM_JOIN_GAME( "SYSTEM_JOIN_GAME" );
 static const std::string SYSTEM_LEAVE_GAME( "SYSTEM_LEAVE_GAME" );

@@ -78,13 +78,19 @@ private:
                             const std::string& message );
 
    // request a game to the server given its kind
-   // compute the available player if needed
    // respond to the connection
    //     'SYSTEM_REQUEST_GAME GameKind'
    //             'SYSTEM_REQUEST_GAME_REFUSED ErrorMessage'
    //             'SYSTEM_REQUEST_GAME_ACCEPTED GameId #Consumer [Consumer]'
    void requestGame( ClientConnectionPtr connection,
                      const std::string& gameKind );
+
+   // request a list of game to the server given its kind
+   // respond to the connection
+   //     'SYSTEM_REQUEST_GAME_LIST GameKind'
+   //             'SYSTEM_REQUEST_GAME_LIST_RESULT [game]'
+   void requestGameList( ClientConnectionPtr connection,
+                         const std::string& gameKind ) const;
 
    // join the first non full game
    // or request a game to the server given its kind if no game exist or all is full

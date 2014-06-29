@@ -6,6 +6,7 @@
 
 #include "string/StringUtils.hpp"
 #include "network/NetworkMessage.hpp"
+#include "logger/asyncLogger.hpp"
 
 #include "ConnectionManager.hpp"
 #include "Game.hpp"
@@ -57,7 +58,7 @@ void ConnectionManager::handle_accept( const boost::system::error_code& error,
 	{
       // create the unique id
       std::string newClientName = createNewClientName();
-		std::cout << "ConnectionManager> " << "Connection accepted> " << newClientName << std::endl;
+		AsyncLogger::getInstance()->log( "ConnectionManager> Connection accepted> " + newClientName );
 
       // create the client
 		ClientConnectionPtr client = ClientConnection::create( newClientName, 
@@ -86,7 +87,7 @@ void ConnectionManager::handleMessage( ClientConnectionPtr connection,
                                        const std::string& message )
 {
    // log the message
-   std::cout << connection->getLogin() << "> " << message << std::endl;
+   AsyncLogger::getInstance()->log( "RECEIVE FROM (" + connection->getLogin() + ") : " + message );
 
    // explode the message to be able to check the kind 
    std::vector< std::string > messageParts;
@@ -98,31 +99,36 @@ void ConnectionManager::handleMessage( ClientConnectionPtr connection,
       if ( messageParts[ 0 ] == SYSTEM_REGISTER )
       {
          registerConnection( connection,
-                             messageParts[ 1 ] );
+                              messageParts[ 1 ] );
          dumpCurrentState();
       }
       else if ( messageParts[ 0 ] == SYSTEM_REQUEST_GAME )
       {
          requestGame( connection,
-                      messageParts[ 1 ] );
+                        messageParts[ 1 ] );
          dumpCurrentState();
+      }
+      else if ( messageParts[ 0 ] == SYSTEM_REQUEST_GAME_LIST )
+      {
+         requestGameList( connection,
+                           messageParts[ 1 ] );
       }
       else if ( messageParts[ 0 ] == SYSTEM_JOIN_OR_REQUEST_GAME )
       {
          joinOrRequestGame( connection,
-                            messageParts[ 1 ] );
+                              messageParts[ 1 ] );
          dumpCurrentState();
       }
       else if ( messageParts[ 0 ] == SYSTEM_JOIN_GAME )
       {
          joinGame( connection,
-                   messageParts[ 1 ] );
+                     messageParts[ 1 ] );
          dumpCurrentState();
       }
       else if ( messageParts[ 0 ] == SYSTEM_LEAVE_GAME )
       {
          leaveGame( connection,
-                    messageParts[ 1 ] );
+                     messageParts[ 1 ] );
          dumpCurrentState();
       }
       else if ( messageParts[ 0 ] == SYSTEM_GAME_CREATION_REFUSED )
@@ -130,14 +136,14 @@ void ConnectionManager::handleMessage( ClientConnectionPtr connection,
          // get the relevant information
          std::vector< std::string > messageInformation;
          StringUtils::explode( messageParts[ 1 ],
-                               ' ',
-                               messageInformation,
-                               2 );
+                                 ' ',
+                                 messageInformation,
+                                 2 );
 
          // and close the game
          closeGame( connection,
-                    messageInformation[ 0 ],
-                    messageInformation[ 1 ] );
+                     messageInformation[ 0 ],
+                     messageInformation[ 1 ] );
          dumpCurrentState();
       }
       else if ( messageParts[ 0 ] == GAME_MESSAGE )
@@ -145,14 +151,14 @@ void ConnectionManager::handleMessage( ClientConnectionPtr connection,
          // get the relevant information
          std::vector< std::string > messageInformation;
          StringUtils::explode( messageParts[ 1 ],
-                               ' ',
-                               messageInformation,
-                               2 );
+                                 ' ',
+                                 messageInformation,
+                                 2 );
 
          // and forward the message (gameId, message)
          handleGameMessage( connection,
-                            messageInformation[ 0 ],
-                            message );
+                              messageInformation[ 0 ],
+                              message );
       }
    }
 }
@@ -375,34 +381,52 @@ void ConnectionManager::requestGame( ClientConnectionPtr connection,
       // get the list of consumers available (always define as there is at least the requester present)
       ClientList consumers = consumerByGame.find( gameKind )->second;
 
-      // check if there is enough consumer to play the game
-      // if IA can play, the game definition should reflect it by decreasing the minPlayer status
-      if ( consumers.size() >= gameDef.minPlayer )
-      {
-         // create the game
-         Game* game = new Game( gameDef, 
-                                findLessLoadedProvider( itProviders->second ) );
+      // create the game
+      Game* game = new Game( gameDef, 
+                             findLessLoadedProvider( itProviders->second ) );
 
-         // store it
-         games.insert( GameMap::value_type( game->getId(),
-                                            game ) );
+      // store it
+      games.insert( GameMap::value_type( game->getId(),
+                                         game ) );
 
-         // alert the provider about a new game creation
-         // it can send back a GAME_CREATION_REFUSED which will leads to close the game
-         game->getProvider()->sendMessage( GAME_MESSAGE + " " + GAME_CREATED + " " + game->getId() );
+      // alert the provider about a new game creation
+      // it can send back a GAME_CREATION_REFUSED which will leads to close the game
+      game->getProvider()->sendMessage( GAME_MESSAGE + " " + GAME_CREATED + " " + game->getId()  + " " + gameDef.kind );
 
-         // and send the accept message to the client
-         connection->sendMessage( GAME_MESSAGE + " " + GAME_ACCEPTED + " " + game->getId() + " " + gameDef.kind );
-      }
-      else
-      {
-         connection->sendMessage( GAME_MESSAGE + " " + GAME_REFUSED + " Not enough players available" );
-      }
+      // and send the accept message to the client
+      connection->sendMessage( GAME_MESSAGE + " " + GAME_ACCEPTED + " " + game->getId() + " " + gameDef.kind );
    }
    else
    {
       connection->sendMessage( GAME_MESSAGE + " " + GAME_REFUSED + " No server found to handle this game" );
    }
+}
+
+// request a list of game to the server given its kind
+// respond to the connection
+//     'SYSTEM_REQUEST_GAME_LIST GameKind'
+//             'SYSTEM_REQUEST_GAME_LIST_RESULT [game]'
+void ConnectionManager::requestGameList( ClientConnectionPtr connection,
+                                         const std::string& gameKind ) const
+{
+   std::string responseMessage( SYSTEM_REQUEST_GAME_LIST_RESULT );
+
+   // check if there is avaialble game 
+   for ( GameMap::const_iterator itGame = games.begin();
+         itGame != games.end();
+         itGame++ )
+   {
+      Game* game = itGame->second;
+
+      // check if the game is of good kind and if there is enough places
+      if (  ( game->getKind() == gameKind )
+          &&( game->placeAvailable() == true )  )
+      {
+         responseMessage += " " + game->getId();
+      }
+   }
+
+   connection->sendMessage( responseMessage );
 }
 
 // join the first non full game
@@ -568,59 +592,61 @@ bool ConnectionManager::isValidLogin( const std::string& login,
 // connectiosn, games ...
 void ConnectionManager::dumpCurrentState() const
 {
-   std::cout << "----------------------------------------------------------------------------------------" << std::endl;
-   std::cout << "connections:     " << connections.size() << std::endl;
-   std::cout << "gameDefinitions: " << gameDefinitions.size() << std::endl;
-   std::cout << "consumerByGame:  " << consumerByGame.size() << std::endl;
-   std::cout << "providerByGame:  " << providerByGame.size() << std::endl;
-   std::cout << "games:           " << games.size() << std::endl;
-   std::cout << "----------------------------------------------------------------------------------------" << std::endl;
-   std::cout << "CONNECTIONS: " << std::endl;
+   std::stringstream stream;
+   stream << std::endl;
+   stream << "----------------------------------------------------------------------------------------" << std::endl;
+   stream << "connections:     " << connections.size() << std::endl;
+   stream << "gameDefinitions: " << gameDefinitions.size() << std::endl;
+   stream << "consumerByGame:  " << consumerByGame.size() << std::endl;
+   stream << "providerByGame:  " << providerByGame.size() << std::endl;
+   stream << "games:           " << games.size() << std::endl;
+   stream << "----------------------------------------------------------------------------------------" << std::endl;
+   stream << "CONNECTIONS: " << std::endl;
    for ( ClientList::const_iterator it = connections.begin();
          it != connections.end();
          it++ )
    {
-      std::cout << "\t" << (*it)->getTechnicalId() << "\t" << (*it)->getLogin() << std::endl;
+      stream << "\t" << (*it)->getTechnicalId() << "\t" << (*it)->getLogin() << std::endl;
    }
-   std::cout << "----------------------------------------------------------------------------------------" << std::endl;
-   std::cout << "GAME DEFINITION: " << std::endl;
+   stream << "----------------------------------------------------------------------------------------" << std::endl;
+   stream << "GAME DEFINITION: " << std::endl;
    for ( GameDefinitionMap::const_iterator it = gameDefinitions.begin();
          it != gameDefinitions.end();
          it++ )
    {
-      std::cout << "\t" << it->first << std::endl;
-      std::cout << "\t\t" << it->second.kind << "\t" << it->second.minPlayer << "\t" << it->second.maxPlayer << "\t" << it->second.iaAvailable << std::endl;
+      stream << "\t" << it->first << std::endl;
+      stream << "\t\t" << it->second.kind << "\t" << it->second.minPlayer << "\t" << it->second.maxPlayer << "\t" << it->second.iaAvailable << std::endl;
    }
-   std::cout << "----------------------------------------------------------------------------------------" << std::endl;
-   std::cout << "CONSUMER BY GAME: " << std::endl;
+   stream << "----------------------------------------------------------------------------------------" << std::endl;
+   stream << "CONSUMER BY GAME: " << std::endl;
    for ( ClientAggregat::const_iterator itAgg = consumerByGame.begin();
          itAgg != consumerByGame.end();
          itAgg++ )
    {
-      std::cout << "\t" << itAgg->first << std::endl;
+      stream << "\t" << itAgg->first << std::endl;
       for ( ClientList::const_iterator it = itAgg->second.begin();
             it != itAgg->second.end();
             it++ )
       {
-         std::cout << "\t\t" << (*it)->getTechnicalId() << "\t" << (*it)->getLogin() << std::endl;
+         stream << "\t\t" << (*it)->getTechnicalId() << "\t" << (*it)->getLogin() << std::endl;
       }
    }
-   std::cout << "----------------------------------------------------------------------------------------" << std::endl;
-   std::cout << "PROVIDER BY GAME: " << std::endl;
+   stream << "----------------------------------------------------------------------------------------" << std::endl;
+   stream << "PROVIDER BY GAME: " << std::endl;
    for ( ClientAggregat::const_iterator itAgg = providerByGame.begin();
          itAgg != providerByGame.end();
          itAgg++ )
    {
-      std::cout << "\t" << itAgg->first << std::endl;
+      stream << "\t" << itAgg->first << std::endl;
       for ( ClientList::const_iterator it = itAgg->second.begin();
             it != itAgg->second.end();
             it++ )
       {
-         std::cout << "\t\t" << (*it)->getTechnicalId() << "\t" << (*it)->getLogin() << "\t" << (*it)->getLoad() << std::endl;
+         stream << "\t\t" << (*it)->getTechnicalId() << "\t" << (*it)->getLogin() << "\t" << (*it)->getLoad() << std::endl;
       }
    }
-   std::cout << "----------------------------------------------------------------------------------------" << std::endl;
-   std::cout << "CURRENT GAME: " << std::endl;
+   stream << "----------------------------------------------------------------------------------------" << std::endl;
+   stream << "CURRENT GAME: " << std::endl;
    for ( GameMap::const_iterator it = games.begin();
          it != games.end();
          it++ )
@@ -628,15 +654,15 @@ void ConnectionManager::dumpCurrentState() const
       Game* game = it->second;
       const ClientList& clients = game->getClients();
 
-      std::cout << "\t" << it->first << std::endl;
-      std::cout << "\t\t" << game->getProvider()->getTechnicalId() << "\t" << game->getProvider()->getLogin() << "\t--> " << clients.size() << " clients." << std::endl;
+      stream << "\t" << it->first << std::endl;
+      stream << "\t\t" << game->getProvider()->getTechnicalId() << "\t" << game->getProvider()->getLogin() << "\t--> " << clients.size() << " clients." << std::endl;
       for ( ClientList::const_iterator itClient = clients.begin();
             itClient != clients.end();
             itClient++ )
       {
-         std::cout << "\t\t\t" << (*itClient)->getTechnicalId() << "\t" << (*itClient)->getLogin() << std::endl;
+         stream << "\t\t\t" << (*itClient)->getTechnicalId() << "\t" << (*itClient)->getLogin() << std::endl;
       }
    }
-   std::cout << "----------------------------------------------------------------------------------------" << std::endl;
-
+   stream << "----------------------------------------------------------------------------------------" << std::endl;
+   AsyncLogger::getInstance()->log( stream.str() );
 }

@@ -6,6 +6,7 @@
 #include "network/NetworkMessage.hpp"
 #include "network/NetworkClient.hpp"
 #include "string/StringUtils.hpp"
+#include "logger/asyncLogger.hpp"
 
 ConnectionToServer::ConnectionToServer( const std::string& name,
                                         connection_ptr connection )
@@ -16,12 +17,12 @@ ConnectionToServer::ConnectionToServer( const std::string& name,
    client( NULL ),
    status( INIT )
 {
-	std::cout << "ConnectionToServer> New client conncection created> " << name << std::endl;
+	AsyncLogger::getInstance()->log( "ConnectionToServer> New client conncection created> " + name );
 }
 
 ConnectionToServer::~ConnectionToServer() 
 { 
-	std::cout << "ConnectionToServer> Session close> " << name << std::endl;
+	AsyncLogger::getInstance()->log( "ConnectionToServer> Session close> " + name );
 }
 
 // set the client user of this connection
@@ -60,7 +61,7 @@ void ConnectionToServer::waitForData()
 
 void ConnectionToServer::sendMessage(const std::string& message)
 {
-   std::cout << "ConnectionToServer (" << name << ") writing: " << message << std::endl;
+   AsyncLogger::getInstance()->log( "WRITING ON ConnectionToServer (" + name + ") : " + message );
 
    // send the message on the network
    connection->asyncWrite( message + '\0',
@@ -83,15 +84,17 @@ void ConnectionToServer::handleRead( const boost::system::error_code& error )
 	}
 	else
 	{
-      std::cout << "ConnectionToServer> " << name << "> handleRead call with error code: " << error.value() << " --> " << error.message() << std::endl;
-	}
+      std::stringstream stream;
+      stream << "ConnectionToServer (" << name << ") > handleRead call with error code: " << error.value() << " --> " << error.message();
+      AsyncLogger::getInstance()->log( stream.str() );
+   }
 }
 
 // thread used to decipher and manage the message
 void ConnectionToServer::handleMessageInThread( const std::string& messageToTreat )
 {
    // log the message if needed
-   std::cout << "ConnectionToServer> " << "Message received> " << message << std::endl;
+   AsyncLogger::getInstance()->log( "RECEIVE FROM ConnectionToServer (" + name + ") : " + message );
 
    // check if its the init process
    if (  ( status == INIT )
@@ -163,14 +166,16 @@ void ConnectionToServer::handleWrite( const boost::system::error_code& error )
    // if an error occurs, close the connection
 	if ( error != 0 )
 	{
-      std::cout << "ConnectionToServer> " << name << "> handleWrite call with error code: " << error.value() << " --> " << error.message() << std::endl;
+      std::stringstream stream;
+      stream << "ConnectionToServer (" << name << ") > handleWrite call with error code: " << error.value() << " --> " << error.message();
+      AsyncLogger::getInstance()->log( stream.str() );
 	}
 }
 
 void ConnectionToServer::handleConnect( connection_ptr new_connection, 
                                         const boost::system::error_code& error )
 {
-   std::cout << "ConnectionToServer> " << "Connection callback" << std::endl;
+   AsyncLogger::getInstance()->log( "ConnectionToServer> Connection callback" );
 
    // check the error status
 	if ( error == 0)
@@ -186,7 +191,9 @@ void ConnectionToServer::handleConnect( connection_ptr new_connection,
 	}
    else
    {
-      std::cout << "ConnectionToServer> " << name << "> handleConnect call with error code: " << error.value() << " --> " << error.message() << std::endl;
+      std::stringstream stream;
+      stream << "ConnectionToServer (" << name << ") > handleConnect call with error code: " << error.value() << " --> " << error.message();
+      AsyncLogger::getInstance()->log( stream.str() );
    }
 }
 

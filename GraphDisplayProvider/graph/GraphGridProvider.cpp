@@ -5,6 +5,7 @@
 #include "GraphGrid.hpp"
 #include "network/NetworkMessage.hpp"
 #include "string/StringUtils.hpp"
+#include "logger/asyncLogger.hpp"
 
 const std::string GraphGridProvider::NAME( "GraphGame" );
 
@@ -133,7 +134,7 @@ void GraphGridProvider::setNetworkInformation( ProviderManager* manager,
 // callback used to handle the message of game closure
 void GraphGridProvider::close( const std::string& reason )
 {
-   std::cout << "Game " << gameId << " is close due to> " << reason << std::endl;
+   AsyncLogger::getInstance()->log( "Game " + gameId + " is close due to> " + reason );
 }
 
 // call the DFS on the grid
