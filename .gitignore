@@ -52,3 +52,4 @@ Icon
 *.idb
 *.opensdf
 *.unsuccessfulbuild
+*.lib
