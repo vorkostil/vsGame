@@ -4,7 +4,7 @@
 #include <boost/bind.hpp>
 #include <boost/thread.hpp>
 #include "network/NetworkMessage.hpp"
-#include "network/NetworkClient.hpp"
+#include "network/client/NetworkClient.hpp"
 #include "string/StringUtils.hpp"
 #include "logger/asyncLogger.hpp"
 
@@ -135,7 +135,15 @@ void ConnectionToServer::handleMessageInThread( const std::string& messageToTrea
          // game creation
          if ( messagePart[ 1 ] == GAME_CREATED )
          {
-            client->onNewGameCreation( messagePart[ 2 ] );
+            // retrieve the message informatio
+            std::vector< std::string > messageInformation;
+            StringUtils::explode( messagePart[ 2 ],
+                                  ' ',
+                                  messageInformation,
+                                  2 );
+
+            client->onNewGameCreation( messageInformation[ 0 ],
+                                       messageInformation[ 1 ] );
          }
          // game destruction
          else if ( messagePart[ 1 ] == CLOSE_MESSAGE )

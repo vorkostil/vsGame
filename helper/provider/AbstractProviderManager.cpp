@@ -3,16 +3,13 @@
 #include <boost/asio.hpp>
 #include <boost/thread.hpp>
 
-#include "ProviderManager.hpp"
+#include "AbstractProviderManager.hpp"
+#include "AbstractGameProvider.hpp"
 #include "network/NetworkMessage.hpp"
 #include "string/StringUtils.hpp"
-#include "graph/GraphGridProvider.hpp"
-
-// the maximum of available game at a given time
-const int ProviderManager::MAX_GAME_POOL_SIZE = 4;
 
 // default ctor
-ProviderManager::ProviderManager( ConnectionToServerPtr connection )
+AbstractProviderManager::AbstractProviderManager( ConnectionToServerPtr connection )
 :
    connection( connection ),
    login(),
@@ -22,7 +19,7 @@ ProviderManager::ProviderManager( ConnectionToServerPtr connection )
 }
 
 // connect to the BBServer
-void ProviderManager::connect( const std::string& host,
+void AbstractProviderManager::connect( const std::string& host,
                                  int port )
 {
    connection->connect( boost::asio::ip::tcp::endpoint( boost::asio::ip::address::from_string( host ),
@@ -30,40 +27,41 @@ void ProviderManager::connect( const std::string& host,
 }
 
 // callback when the connection is accepted
-void ProviderManager::onConnection()
+void AbstractProviderManager::onConnection()
 {
-   login = GraphGridProvider::NAME + "_" + connection->getLocalEndPointAsString();
+   login = getName() + "_" + connection->getLocalEndPointAsString();
 }
 
 
 // get the login
-const std::string& ProviderManager::getLogin() const
+const std::string& AbstractProviderManager::getLogin() const
 {
    return login;
 }
 
 // get the passwd
-const std::string& ProviderManager::getPassword() const
+const std::string& AbstractProviderManager::getPassword() const
 {
    return login;
 }
 
 // call back when the login procotol succeed
-void ProviderManager::onLoginSucced()
+void AbstractProviderManager::onLoginSucced()
 {
    // register as provider
    // [GameName MinPlayer MaxPlayer IAAvailable]
-   connection->sendMessage( SYSTEM_REGISTER + " " + PROVIDER_PART + " " + GraphGridProvider::NAME + " 1 1 0" );
+   connection->sendMessage( SYSTEM_REGISTER + " " + PROVIDER_PART + " " + getGameDefinitionForRegistration() );
 }
 
 // call back when a game creation message is received
-void ProviderManager::onNewGameCreation( const std::string& gameId )
+void AbstractProviderManager::onNewGameCreation( const std::string& gameId,
+                                                 const std::string& gameKind )
 {
    // check the pool size
-   if ( gamePool.size() < MAX_GAME_POOL_SIZE )
+   if ( gamePool.size() < getMaxGameInPool() )
    {
       // create a new game
-      GraphGridProvider* game = new GraphGridProvider( 32, 32 );
+      AbstractGameProvider* game = requireNewGame( gameKind );
 
       // set its network information
       game->setNetworkInformation( this,
@@ -95,7 +93,7 @@ void ProviderManager::onNewGameCreation( const std::string& gameId )
 }
 
 // callback used to handle the message of game closure
-void ProviderManager::onGameClose( const std::string& gameIds,
+void AbstractProviderManager::onGameClose( const std::string& gameIds,
                                    const std::string& reason )
 {
    // explode the game id list
@@ -132,7 +130,7 @@ void ProviderManager::onGameClose( const std::string& gameIds,
 }
 
 // callback used to handle the message when logon
-void ProviderManager::onHandleMessage( const std::string& gameId,
+void AbstractProviderManager::onHandleMessage( const std::string& gameId,
                                        const std::string& message )
 {
    // get the lock
@@ -143,7 +141,7 @@ void ProviderManager::onHandleMessage( const std::string& gameId,
    /*|*/ if ( itGame != gamePool.end() )
    /*|*/ {
    /*|*/    // spwan a thread to manage the message and avoid locking the gamePool for nothing
-   /*|*/    boost::thread worker( &GraphGridProvider::handleGameMessage,
+   /*|*/    boost::thread worker( &AbstractGameProvider::handleGameMessage,
    /*|*/                          itGame->second,
    /*|*/                          message );
    /*|*/ }
@@ -153,19 +151,19 @@ void ProviderManager::onHandleMessage( const std::string& gameId,
 }
 
 // forward the message on the network
-void ProviderManager::sendMessage( const std::string& message )
+void AbstractProviderManager::sendMessage( const std::string& message )
 {
    connection->sendMessage( message );
 }
 
 // dump the current state of the server
 // should be call inside the mutex
-void ProviderManager::dumpCurrentState() const
+void AbstractProviderManager::dumpCurrentState()
 {
    std::stringstream stream;
    stream << std::endl;
    stream << "----------------------------------------------------------------------------------------" << std::endl;
-   stream << "games: " << gamePool.size() << " / " << MAX_GAME_POOL_SIZE << std::endl;
+   stream << "games: " << gamePool.size() << " / " << getMaxGameInPool() << std::endl;
    stream << "----------------------------------------------------------------------------------------" << std::endl;
    for ( GamePool::const_iterator it = gamePool.begin();
          it != gamePool.end();

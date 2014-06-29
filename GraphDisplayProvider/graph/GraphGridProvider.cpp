@@ -1,13 +1,14 @@
 #define _WIN32_WINNT 0x0501
 
-#include "../ProviderManager.hpp"
 #include "GraphGridProvider.hpp"
 #include "GraphGrid.hpp"
 #include "network/NetworkMessage.hpp"
+#include "provider/AbstractProviderManager.hpp"
 #include "string/StringUtils.hpp"
 #include "logger/asyncLogger.hpp"
 
 const std::string GraphGridProvider::NAME( "GraphGame" );
+const std::string GraphGridProvider::DEFINITION( NAME + " 1 1 0" );
 
 static const std::string CHANGE_CELL_STATE( "CHANGE_CELL_STATE" );
 static const std::string COMPUTE_DFS( "COMPUTE_DFS" );
@@ -24,7 +25,7 @@ static const std::string CLEAR_GRAPH( "CLEAR_GRAPH" );
 GraphGridProvider::GraphGridProvider( size_t width,
                                       size_t height )
 :
-   manager( NULL )
+   AbstractGameProvider()
 {
    graphGrid.initializeGraph( this,
                               width,
@@ -120,22 +121,6 @@ void GraphGridProvider::sendComputeResult( const std::string& result )
       manager->sendMessage( messageToSend );
    }
 }
-// network communication management
-//---------------------------------
-
-// set the manager used to forward message on network
-void GraphGridProvider::setNetworkInformation( ProviderManager* manager,
-                                               const std::string& gameId )
-{
-   this->manager = manager;
-   this->gameId = gameId;
-}
-
-// callback used to handle the message of game closure
-void GraphGridProvider::close( const std::string& reason )
-{
-   AsyncLogger::getInstance()->log( "Game " + gameId + " is close due to> " + reason );
-}
 
 // call the DFS on the grid
 bool computeDFS( GraphGrid* gg )
@@ -223,4 +208,10 @@ void GraphGridProvider::handleGameMessage( const std::string& message )
    {
       callClear();
    }
+}
+
+// get the name of the provider
+const std::string& GraphGridProvider::getName()
+{
+   return NAME;
 }

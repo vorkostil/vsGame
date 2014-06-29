@@ -20,7 +20,8 @@ public:
    virtual void onLoginSucced() = 0;
 
    // call back when a game creation message is received
-   virtual void onNewGameCreation( const std::string& gameId ) = 0;
+   virtual void onNewGameCreation( const std::string& gameId,
+                                   const std::string& gameKind ) = 0;
 
    // callback used to handle the message of game closure
    virtual void onGameClose( const std::string& gameId,

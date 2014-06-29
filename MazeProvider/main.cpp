@@ -5,13 +5,13 @@
 
 #include "network/SimpleTcpConnection.hpp"
 #include "network/client/ConnectionToServer.hpp"
-#include "GraphProviderManager.hpp"
+#include "MazeProviderManager.hpp"
 
 int main( int argc, char* argv[] )
 {
    if ( argc != 3 )
    {
-      std::cout << "USAGE: GraphDisplayProvider <host> <port>" << std::endl;
+      std::cout << "USAGE: MazeProvider <host> <port>" << std::endl;
       return 1;
    }
 
@@ -20,8 +20,8 @@ int main( int argc, char* argv[] )
 
    // create the connection to the server
    connection_ptr new_connection( new SimpleTcpConnection( io_service ) );
-   GraphProviderManager server( ConnectionToServer::create( "GraphDisplayProvider",
-                                                            new_connection ) );
+   MazeProviderManager server( ConnectionToServer::create( "MazeProvider",
+                                                           new_connection ) );
    server.connect( argv[ 1 ],
                    atoi( argv[ 2 ] ) );
 
